@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>B-13 CORE STABILIZATION PROTOCOL</title>
+    <style>
+        :root {
+            --bg: #050505;
+            --primary: #33ff77;  /* Terminal Green */
+            --dim: #1a4422;
+            --alert: #ff3333;
+            --warn: #ffaa00;
+            --medic: #00ccff;
+            --scanline: rgba(0, 0, 0, 0.5);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            background: var(--bg);
+            color: var(--primary);
+            font-family: 'Segoe UI Mono', 'Courier New', monospace;
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            /* ALLOW SCROLLING NOW */
+            overflow-y: auto; 
+            overflow-x: hidden;
+        }
+
+        /* --- FX LAYERS --- */
+        .overlay { position: fixed; top:0; left:0; width:100%; height:100%; pointer-events: none; z-index: 10; }
+        
+        .scanlines {
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.2));
+            background-size: 100% 4px;
+        }
+        
+        .hazard-flash {
+            background: radial-gradient(circle, transparent 50%, rgba(255,0,0,0.5) 100%);
+            opacity: 0; transition: opacity 0.2s; z-index: 12;
+        }
+
+        .cracks {
+            z-index: 11; opacity: 0; filter: drop-shadow(0 0 2px #000);
+            width: 100%; height: 100%; position: fixed; top: 0; left: 0;
+        }
+        .cracks path { fill: none; stroke: rgba(200,255,255,0.4); stroke-width: 2; stroke-linejoin: round; }
+
+        /* --- HEADER --- */
+        header {
+            height: 60px;
+            flex-shrink: 0;
+            border-bottom: 2px solid var(--dim);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            background: #081008;
+        }
+
+        .phase-indicator {
+            font-size: 1.2rem; font-weight: bold; letter-spacing: 2px;
+            color: var(--primary);
+            text-shadow: 0 0 5px var(--primary);
+        }
+
+        .dc-meter {
+            background: #000; border: 1px solid var(--warn); color: var(--warn);
+            padding: 5px 10px; font-weight: bold;
+        }
+
+        /* --- MAIN VISUAL AREA (MAP) --- */
+        .main-vis {
+            position: relative;
+            flex-grow: 1; /* Takes up remaining space */
+            min-height: 300px; /* Don't let it get too squashed */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: radial-gradient(circle at center, #0a1a0a 0%, #000 90%);
+            padding: 20px;
+        }
+
+        #tri-map { 
+            width: 100%; 
+            height: 100%; 
+            max-height: 60vh; /* Limits height so controls stay visible on laptops */
+            overflow: visible; 
+        }
+        
+        /* Map Elements */
+        .conduit { stroke: #223322; stroke-width: 10; fill: none; }
+        .flow { stroke: var(--dim); stroke-width: 3; fill: none; stroke-dasharray: 10 20; animation: flowAnim 2s linear infinite; }
+        .station-node { fill: #050505; stroke: var(--dim); stroke-width: 3; transition: 0.3s; }
+        
+        .station-node.success { stroke: var(--primary); fill: #002200; box-shadow: 0 0 20px var(--primary); }
+        .station-node.fail { stroke: var(--alert); fill: #220000; animation: shakeNode 0.5s; }
+        
+        .node-label { font-size: 14px; fill: var(--dim); font-weight: bold; text-anchor: middle; }
+        .node-icon { font-size: 30px; fill: var(--dim); text-anchor: middle; dominant-baseline: middle; }
+
+        .success .node-label, .success .node-icon { fill: var(--primary); }
+        .fail .node-label, .fail .node-icon { fill: var(--alert); }
+
+        /* --- BOTTOM CONTROLS --- */
+        .control-deck {
+            flex-shrink: 0;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2px;
+            background: var(--dim);
+            border-top: 2px solid var(--primary);
+        }
+
+        .panel {
+            background: #0a0e0a;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--dim);
+            border-bottom: 1px solid var(--dim);
+            min-height: 160px;
+        }
+
+        .panel h3 { margin: 0 0 5px 0; font-size: 0.9rem; color: #668866; border-bottom: 1px solid #333; }
+        .desc-text { font-size: 0.75rem; color: #88aa88; height: 60px; overflow-y: auto; margin-bottom: 10px; line-height: 1.3; }
+        
+        .btn-group { display: flex; gap: 5px; margin-top: auto; }
+        
+        button {
+            flex: 1; border: none; padding: 10px 5px; cursor: pointer; font-family: inherit; font-weight: bold; text-transform: uppercase; font-size: 0.8rem; transition: 0.2s;
+        }
+        
+        .btn-ok { background: #113311; color: var(--primary); border: 1px solid var(--dim); }
+        .btn-ok:hover { background: var(--primary); color: #000; box-shadow: 0 0 10px var(--primary); }
+        
+        .btn-fail { background: #331111; color: var(--alert); border: 1px solid #440000; }
+        .btn-fail:hover { background: var(--alert); color: #000; box-shadow: 0 0 10px var(--alert); }
+
+        .medic-panel { background: #080a10; border-left: 2px solid var(--medic); }
+        .medic-panel h3 { color: var(--medic); }
+        .btn-medic { background: rgba(0, 204, 255, 0.1); color: var(--medic); border: 1px solid var(--medic); width: 100%; margin-top: 5px;}
+        .btn-medic:hover { background: var(--medic); color: #000; }
+
+        /* --- LOG OVERLAY --- */
+        #log-feed {
+            position: absolute;
+            top: 20px; right: 20px;
+            width: 250px;
+            height: 200px;
+            overflow-y: auto;
+            font-size: 0.7rem;
+            text-shadow: 1px 1px 0 #000;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column-reverse; 
+            z-index: 5;
+        }
+        .log-entry { background: rgba(0,0,0,0.8); padding: 4px; margin-bottom: 2px; border-left: 2px solid #555; }
+        .log-success { border-color: var(--primary); color: #ccffcc; }
+        .log-fail { border-color: var(--alert); color: #ffcccc; }
+        .log-medic { border-color: var(--medic); color: #ccffff; }
+        .log-sys { border-color: #fff; color: #fff; font-style: italic; }
+
+        /* ANIMATIONS */
+        @keyframes flowAnim { to { stroke-dashoffset: -30; } }
+        @keyframes shake { 
+            0% { transform: translate(1px, 1px); } 
+            25% { transform: translate(-2px, -2px); }
+            50% { transform: translate(2px, 1px); } 
+            75% { transform: translate(-1px, -2px); } 
+            100% { transform: translate(0, 0); }
+        }
+        .shaking { animation: shake 0.3s linear; }
+
+    </style>
+</head>
+<body>
+
+    <div class="overlay scanlines"></div>
+    <div class="overlay hazard-flash" id="flash-fx"></div>
+    
+    <svg class="overlay cracks" id="crack-fx" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <path id="c1" d="M0 0 L20 30 L10 40" visibility="hidden" />
+        <path id="c2" d="M100 0 L70 20 L80 50" visibility="hidden" />
+        <path id="c3" d="M50 100 L40 70 L60 60" visibility="hidden" />
+        <path id="c4" d="M0 50 L30 50 L40 20" visibility="hidden" />
+    </svg>
+
+    <header>
+        <div>
+            <div style="font-size: 0.7rem; color: #666;">PROTOCOL B-13 // STABILIZATION</div>
+            <div class="phase-indicator" id="round-title">ROUND 1: INITIAL SYNC</div>
+        </div>
+        <div class="dc-meter" id="dc-display">DC 12 CHECK</div>
+    </header>
+
+    <div class="main-vis" id="vis-container">
+        <!-- SYSTEM LOGS FLOATING -->
+        <div id="log-feed"></div>
+
+        <svg id="tri-map" viewBox="0 0 600 500">
+            <!-- CONNECTIONS -->
+            <path d="M 300 100 L 100 400" class="conduit" />
+            <path d="M 300 100 L 100 400" class="flow" id="f1" />
+
+            <path d="M 300 100 L 500 400" class="conduit" />
+            <path d="M 300 100 L 500 400" class="flow" id="f2" />
+
+            <path d="M 100 400 L 500 400" class="conduit" />
+            <path d="M 100 400 L 500 400" class="flow" id="f3" />
+
+            <!-- ALPHA -->
+            <g id="node-alpha">
+                <circle cx="300" cy="100" r="60" class="station-node" />
+                <text x="300" y="105" class="node-icon">⚙</text>
+                <text x="300" y="180" class="node-label">ALPHA (MECH)</text>
+            </g>
+
+            <!-- DELTA -->
+            <g id="node-delta">
+                <circle cx="100" cy="400" r="60" class="station-node" />
+                <text x="100" y="405" class="node-icon">💧</text>
+                <text x="100" y="480" class="node-label">DELTA (PLUMB)</text>
+            </g>
+
+            <!-- ZETA -->
+            <g id="node-zeta">
+                <circle cx="500" cy="400" r="60" class="station-node" />
+                <text x="500" y="405" class="node-icon">⚡</text>
+                <text x="500" y="480" class="node-label">ZETA (ELEC)</text>
+            </g>
+        </svg>
+    </div>
+
+    <div class="control-deck">
+        <!-- ALPHA -->
+        <div class="panel">
+            <h3>ALPHA: MECHANIC</h3>
+            <div class="desc-text" id="desc-alpha">Loading diagnostic...</div>
+            <div class="btn-group">
+                <button class="btn-ok" onclick="action('alpha', true)">STABILIZE</button>
+                <button class="btn-fail" onclick="action('alpha', false)">FAILURE</button>
+            </div>
+        </div>
+
+        <!-- DELTA -->
+        <div class="panel">
+            <h3>DELTA: PLUMBER</h3>
+            <div class="desc-text" id="desc-delta">Loading diagnostic...</div>
+            <div class="btn-group">
+                <button class="btn-ok" onclick="action('delta', true)">STABILIZE</button>
+                <button class="btn-fail" onclick="action('delta', false)">FAILURE</button>
+            </div>
+        </div>
+
+        <!-- ZETA -->
+        <div class="panel">
+            <h3>ZETA: ELECTRICIAN</h3>
+            <div class="desc-text" id="desc-zeta">Loading diagnostic...</div>
+            <div class="btn-group">
+                <button class="btn-ok" onclick="action('zeta', true)">STABILIZE</button>
+                <button class="btn-fail" onclick="action('zeta', false)">FAILURE</button>
+            </div>
+        </div>
+
+        <!-- MEDIC -->
+        <div class="panel medic-panel">
+            <h3>MEDIC SUPPORT</h3>
+            <div class="desc-text" id="desc-medic" style="color:#00aaff;">Ready to treat burns/shocks.</div>
+            <button class="btn-medic" onclick="medicAction()">APPLY TREATMENT</button>
+            <button class="btn-medic" onclick="forceNextRound()" style="margin-top:auto; border-color:#444; color:#666; font-size:0.6rem;">[GM: FORCE NEXT]</button>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA: THE SCENARIO ---
+        const scenario = {
+            1: {
+                title: "ROUND 1: INITIAL STABILIZATION",
+                dc: "DC 12",
+                alpha: {
+                    desc: "Gears grinding unevenly. Yellow heartbeat light. Needs specific rotation sequence.",
+                    pass: "Relay snaps into sync. Gears stabilize.",
+                    fail: "SPARKS! 1d3 Dmg to Delta or Zeta. Target gets -1 check."
+                },
+                delta: {
+                    desc: "Valves sweating. Leaking mist. Hissing like a living thing.",
+                    pass: "Pressure equalizes. Mist stops.",
+                    fail: "COOLANT SPRAY! Roll AGI DC 12 or slip (1d2 dmg). Floor is slippery (-1 checks)."
+                },
+                zeta: {
+                    desc: "Blue arcs jumping. Voltage spiking. Stuttering flashes.",
+                    pass: "Voltage stabilizes. Healthy hum.",
+                    fail: "SHOCK JOLT! 1d3 Dmg to Alpha or Delta. Hand tremors (-1)."
+                },
+                medic: "Stabilize shocked/soaked players to remove -1 Penalty."
+            },
+            2: {
+                title: "ROUND 2: COORDINATION",
+                dc: "DC 13",
+                alpha: {
+                    desc: "Relay shuddering violently. Dangerously close to misalignment.",
+                    pass: "Teeth align perfectly. Emits steady tone.",
+                    fail: "FEEDBACK SPARK! Delta & Zeta roll AGI DC 12 or take 1d3 Dmg."
+                },
+                delta: {
+                    desc: "Pipes rumbling. Cracking sound from coupler.",
+                    pass: "Coolant cycle synchronizes.",
+                    fail: "VALVE BLOWOUT! Coolant splash. All players -1 AGI."
+                },
+                zeta: {
+                    desc: "Board warm to touch. Circuits flickering orange.",
+                    pass: "Voltage syncs. Conduits burn steady blue.",
+                    fail: "SURGE! Random player takes 1d3 Dmg + shock (-1)."
+                },
+                medic: "Anticipate failure (+2 to next roll) or wipe coolant."
+            },
+            3: {
+                title: "ROUND 3: FINAL SYNC",
+                dc: "DC 14",
+                alpha: {
+                    desc: "Gears glowing orange. One jolt from snapping.",
+                    pass: "FINAL LOCK. Alpha stabilizes permanently.",
+                    fail: "BACKLASH! 1d3 Dmg to self. Delta DC increases +1."
+                },
+                delta: {
+                    desc: "Steam venting intermittently. Roaring like a geyser.",
+                    pass: "FINAL LOCK. Pressure hits green threshold.",
+                    fail: "SCALD! 1d3 Dmg to self. Zeta DC increases +1."
+                },
+                zeta: {
+                    desc: "High pitch rising tone. Circuits white-hot.",
+                    pass: "FINAL LOCK. Routing complete.",
+                    fail: "OVERLOAD! All roll CON DC 12 or 1d3 Dmg. Station unstable."
+                },
+                medic: "Prevent knockdown OR Give +3 Stim."
+            }
+        };
+
+        // --- STATE ---
+        let currentRound = 1;
+        let status = { alpha: false, delta: false, zeta: false };
+        let cracksVisible = 0;
+
+        // --- INITIALIZE ---
+        loadRound(1);
+
+        function loadRound(r) {
+            const data = scenario[r];
+            document.getElementById('round-title').innerText = data.title;
+            document.getElementById('dc-display').innerText = data.dc;
+            
+            // Update Descriptions
+            document.getElementById('desc-alpha').innerText = data.alpha.desc;
+            document.getElementById('desc-delta').innerText = data.delta.desc;
+            document.getElementById('desc-zeta').innerText = data.zeta.desc;
+            document.getElementById('desc-medic').innerText = data.medic;
+
+            // Reset Visuals
+            resetNodes();
+            log("SYS", `INITIATING ${data.title}...`);
+        }
+
+        function action(role, success) {
+            const data = scenario[currentRound][role];
+            const node = document.getElementById('node-' + role);
+
+            // Reset class
+            node.classList.remove('success', 'fail');
+            void node.offsetWidth; // Reflow
+
+            if (success) {
+                node.classList.add('success');
+                log("SUCCESS", `[${role.toUpperCase()}] ${data.pass}`);
+                status[role] = true;
+                checkWin();
+            } else {
+                node.classList.add('fail');
+                log("FAIL", `[${role.toUpperCase()}] ${data.fail}`);
+                triggerDamage();
+            }
+        }
+
+        function medicAction() {
+            log("MEDIC", "Applying treatment / Stabilization protocol...");
+        }
+
+        function checkWin() {
+            if (status.alpha && status.delta && status.zeta) {
+                setTimeout(() => {
+                    if(currentRound < 3) {
+                        currentRound++;
+                        status = { alpha: false, delta: false, zeta: false };
+                        log("SYS", "ALL STATIONS GREEN. ADVANCING...");
+                        loadRound(currentRound);
+                    } else {
+                        victory();
+                    }
+                }, 1500);
+            }
+        }
+
+        function forceNextRound() {
+            if(currentRound < 3) {
+                currentRound++;
+                status = { alpha: false, delta: false, zeta: false };
+                loadRound(currentRound);
+            } else {
+                victory();
+            }
+        }
+
+        function triggerDamage() {
+            // 1. Flash
+            const flash = document.getElementById('flash-fx');
+            flash.style.opacity = 1;
+            setTimeout(() => flash.style.opacity = 0, 200);
+
+            // 2. Shake
+            document.getElementById('vis-container').classList.add('shaking');
+            setTimeout(() => document.getElementById('vis-container').classList.remove('shaking'), 300);
+
+            // 3. Crack
+            cracksVisible++;
+            if(cracksVisible <= 4) {
+                document.getElementById('crack-fx').style.opacity = 0.8;
+                document.getElementById('c' + cracksVisible).setAttribute('visibility', 'visible');
+            }
+        }
+
+        function victory() {
+            document.body.style.background = "#001100";
+            document.getElementById('round-title').innerText = "SYSTEM RESTORED";
+            document.getElementById('round-title').style.color = "#fff";
+            log("SYS", "REACTOR STABILIZED. BRIDGE UNLOCKED.");
+            document.querySelectorAll('.station-node').forEach(n => n.style.fill = "#00ff00");
+        }
+
+        function resetNodes() {
+            document.querySelectorAll('.station-node').forEach(n => {
+                n.classList.remove('success', 'fail');
+            });
+        }
+
+        function log(type, msg) {
+            const feed = document.getElementById('log-feed');
+            const entry = document.createElement('div');
+            entry.classList.add('log-entry');
+            if(type === 'SUCCESS') entry.classList.add('log-success');
+            if(type === 'FAIL') entry.classList.add('log-fail');
+            if(type === 'MEDIC') entry.classList.add('log-medic');
+            if(type === 'SYS') entry.classList.add('log-sys');
+            
+            entry.innerText = `> ${msg}`;
+            feed.prepend(entry);
+        }
+
+    </script>
+</body>
+</html>
