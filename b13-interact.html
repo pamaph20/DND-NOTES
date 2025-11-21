@@ -3,462 +3,518 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>B-13 CORE STABILIZATION PROTOCOL</title>
+    <title>B-13 CORE // FINAL</title>
     <style>
         :root {
-            --bg: #050505;
-            --primary: #33ff77;  /* Terminal Green */
-            --dim: #1a4422;
+            --bg: #020202;
+            --panel: #080a08;
+            --primary: #33ff77;
+            --dim: #153315;
             --alert: #ff3333;
             --warn: #ffaa00;
             --medic: #00ccff;
-            --scanline: rgba(0, 0, 0, 0.5);
+            --calm: #4488ff; /* The Victory Blue */
+            --grid: rgba(51, 255, 119, 0.05);
         }
 
-        * { box-sizing: border-box; }
+        * { box-sizing: border-box; user-select: none; }
 
         body {
             background: var(--bg);
             color: var(--primary);
             font-family: 'Segoe UI Mono', 'Courier New', monospace;
             margin: 0;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            /* ALLOW SCROLLING NOW */
-            overflow-y: auto; 
-            overflow-x: hidden;
+            height: 100vh;
+            overflow: hidden;
+            transition: background-color 3s ease; /* Smooth fade for victory */
         }
 
-        /* --- FX LAYERS --- */
-        .overlay { position: fixed; top:0; left:0; width:100%; height:100%; pointer-events: none; z-index: 10; }
-        
+        /* --- OVERLAYS --- */
         .scanlines {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10;
             background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.2));
             background-size: 100% 4px;
         }
         
         .hazard-flash {
-            background: radial-gradient(circle, transparent 50%, rgba(255,0,0,0.5) 100%);
-            opacity: 0; transition: opacity 0.2s; z-index: 12;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 20;
+            background: radial-gradient(circle, transparent 50%, rgba(255,0,0,0.8) 100%);
+            opacity: 0; transition: opacity 0.1s;
         }
 
-        .cracks {
-            z-index: 11; opacity: 0; filter: drop-shadow(0 0 2px #000);
-            width: 100%; height: 100%; position: fixed; top: 0; left: 0;
+        .crack-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 15;
+            opacity: 0; filter: drop-shadow(0 0 2px #000); transition: opacity 2s;
         }
-        .cracks path { fill: none; stroke: rgba(200,255,255,0.4); stroke-width: 2; stroke-linejoin: round; }
+        .crack-overlay path { fill: none; stroke: rgba(200,255,255,0.5); stroke-width: 2; stroke-linejoin: round; }
 
-        /* --- HEADER --- */
+        /* --- TRANSITION / MESSAGE OVERLAY --- */
+        #system-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 50;
+            background: rgba(0,0,0,0.9);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.5s;
+        }
+        #sys-msg-main { font-size: 2rem; color: var(--primary); text-shadow: 0 0 10px var(--primary); margin-bottom: 20px; text-align: center; }
+        #sys-msg-sub { font-size: 1rem; color: #888; font-family: sans-serif; max-width: 600px; line-height: 1.5; text-align: center; }
+
+        /* --- UI LAYOUT --- */
+        .screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column;
+            transition: opacity 0.3s, transform 0.3s;
+        }
+        .hidden { opacity: 0; pointer-events: none; transform: scale(0.95); }
+        .active { opacity: 1; pointer-events: all; transform: scale(1); }
+
         header {
-            height: 60px;
-            flex-shrink: 0;
-            border-bottom: 2px solid var(--dim);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0 20px;
-            background: #081008;
+            height: 60px; border-bottom: 2px solid var(--dim);
+            display: flex; justify-content: space-between; align-items: center; padding: 0 20px;
+            background: #050505; z-index: 5; transition: background 3s;
         }
 
-        .phase-indicator {
-            font-size: 1.2rem; font-weight: bold; letter-spacing: 2px;
-            color: var(--primary);
-            text-shadow: 0 0 5px var(--primary);
-        }
-
-        .dc-meter {
-            background: #000; border: 1px solid var(--warn); color: var(--warn);
-            padding: 5px 10px; font-weight: bold;
-        }
-
-        /* --- MAIN VISUAL AREA (MAP) --- */
-        .main-vis {
-            position: relative;
-            flex-grow: 1; /* Takes up remaining space */
-            min-height: 300px; /* Don't let it get too squashed */
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background: radial-gradient(circle at center, #0a1a0a 0%, #000 90%);
-            padding: 20px;
-        }
-
-        #tri-map { 
-            width: 100%; 
-            height: 100%; 
-            max-height: 60vh; /* Limits height so controls stay visible on laptops */
-            overflow: visible; 
-        }
+        /* --- HUB SCREEN --- */
+        #hub-screen { background: radial-gradient(circle at center, #111 0%, #000 90%); transition: background 3s; }
+        .map-container { flex-grow: 1; display: flex; justify-content: center; align-items: center; position: relative; }
         
-        /* Map Elements */
-        .conduit { stroke: #223322; stroke-width: 10; fill: none; }
-        .flow { stroke: var(--dim); stroke-width: 3; fill: none; stroke-dasharray: 10 20; animation: flowAnim 2s linear infinite; }
-        .station-node { fill: #050505; stroke: var(--dim); stroke-width: 3; transition: 0.3s; }
+        .conduit { stroke: #112211; stroke-width: 10; fill: none; transition: 0.5s; }
+        .station-btn { cursor: pointer; transition: 0.3s; }
+        .station-circle { fill: #050505; stroke: var(--dim); stroke-width: 4; transition: fill 3s, stroke 3s; }
+        .station-icon { fill: var(--dim); font-size: 30px; text-anchor: middle; dominant-baseline: middle; transition: fill 3s; }
+        .station-label { fill: var(--dim); font-size: 14px; text-anchor: middle; font-weight: bold; transition: fill 3s; }
         
-        .station-node.success { stroke: var(--primary); fill: #002200; box-shadow: 0 0 20px var(--primary); }
-        .station-node.fail { stroke: var(--alert); fill: #220000; animation: shakeNode 0.5s; }
+        .station-btn:hover .station-circle { stroke: #fff; fill: #111; }
+        .station-btn:hover .station-icon { fill: #fff; }
         
-        .node-label { font-size: 14px; fill: var(--dim); font-weight: bold; text-anchor: middle; }
-        .node-icon { font-size: 30px; fill: var(--dim); text-anchor: middle; dominant-baseline: middle; }
+        .done .station-circle { stroke: var(--primary); fill: #002200; box-shadow: 0 0 20px var(--primary); }
+        .done .station-icon { fill: var(--primary); }
+        .done .station-label { fill: var(--primary); }
 
-        .success .node-label, .success .node-icon { fill: var(--primary); }
-        .fail .node-label, .fail .node-icon { fill: var(--alert); }
+        /* --- DETAIL SCREEN --- */
+        #detail-screen { background: #080808; padding: 20px; display: grid; grid-template-rows: 60px 1fr 90px; }
+        .detail-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; color: #888; }
+        .detail-body { display: grid; grid-template-columns: 1fr 300px; gap: 20px; padding: 20px 0; }
 
-        /* --- BOTTOM CONTROLS --- */
-        .control-deck {
-            flex-shrink: 0;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 2px;
-            background: var(--dim);
-            border-top: 2px solid var(--primary);
+        .visualizer {
+            border: 1px solid var(--primary); background: #000;
+            box-shadow: inset 0 0 30px rgba(0,255,100,0.05);
+            display: flex; justify-content: center; align-items: center; position: relative; overflow: hidden;
+            background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+            background-size: 40px 40px;
         }
 
-        .panel {
-            background: #0a0e0a;
-            padding: 10px;
-            display: flex;
-            flex-direction: column;
-            border-right: 1px solid var(--dim);
-            border-bottom: 1px solid var(--dim);
-            min-height: 160px;
+        .data-panel { border-left: 1px solid var(--dim); padding-left: 20px; display: flex; flex-direction: column; gap: 15px; }
+        .data-block { margin-bottom: 10px; }
+        .data-label { font-size: 0.7rem; color: #555; text-transform: uppercase; display: block; margin-bottom: 5px; border-bottom: 1px dashed #222; }
+        .data-text { font-size: 0.9rem; line-height: 1.4; color: #ccc; }
+
+        .controls { display: flex; gap: 10px; border-top: 1px solid #222; padding-top: 10px; }
+        button { flex: 1; border: none; padding: 15px; cursor: pointer; font-family: inherit; font-weight: bold; text-transform: uppercase; font-size: 1rem; transition: 0.2s; }
+        
+        .btn-success { background: #003300; color: var(--primary); border: 1px solid var(--dim); }
+        .btn-success:hover { background: var(--primary); color: #000; box-shadow: 0 0 15px var(--primary); }
+
+        .btn-fail { background: #330000; color: var(--alert); border: 1px solid #440000; }
+        .btn-fail:hover { background: var(--alert); color: #000; box-shadow: 0 0 15px var(--alert); }
+        
+        .btn-back { background: transparent; color: #666; border: 1px solid #333; max-width: 100px; }
+        .btn-back:hover { border-color: #fff; color: #fff; }
+
+        /* --- ANIMATIONS --- */
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes spinRev { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
+        @keyframes pulseG { from { stroke-width: 2; opacity: 0.8; } to { stroke-width: 4; opacity: 1; } }
+        @keyframes vibe { 0% { transform: translate(1px, 1px); } 100% { transform: translate(-1px, -1px); } }
+        
+        /* The Jitter Animation for Delta Needle - defined globally */
+        @keyframes jitterAnim { 
+            0% { transform: rotate(-45deg); } 
+            10% { transform: rotate(-30deg); }
+            20% { transform: rotate(60deg); } 
+            40% { transform: rotate(40deg); } 
+            60% { transform: rotate(80deg); } 
+            80% { transform: rotate(20deg); } 
+            100% { transform: rotate(90deg); } 
         }
 
-        .panel h3 { margin: 0 0 5px 0; font-size: 0.9rem; color: #668866; border-bottom: 1px solid #333; }
-        .desc-text { font-size: 0.75rem; color: #88aa88; height: 60px; overflow-y: auto; margin-bottom: 10px; line-height: 1.3; }
-        
-        .btn-group { display: flex; gap: 5px; margin-top: auto; }
-        
-        button {
-            flex: 1; border: none; padding: 10px 5px; cursor: pointer; font-family: inherit; font-weight: bold; text-transform: uppercase; font-size: 0.8rem; transition: 0.2s;
-        }
-        
-        .btn-ok { background: #113311; color: var(--primary); border: 1px solid var(--dim); }
-        .btn-ok:hover { background: var(--primary); color: #000; box-shadow: 0 0 10px var(--primary); }
-        
-        .btn-fail { background: #331111; color: var(--alert); border: 1px solid #440000; }
-        .btn-fail:hover { background: var(--alert); color: #000; box-shadow: 0 0 10px var(--alert); }
+        .shaking { animation: shake 0.2s; }
+        @keyframes shake { 0% { transform: translate(0,0); } 25% { transform: translate(5px, -5px); } 75% { transform: translate(-5px, 5px); } }
 
-        .medic-panel { background: #080a10; border-left: 2px solid var(--medic); }
-        .medic-panel h3 { color: var(--medic); }
-        .btn-medic { background: rgba(0, 204, 255, 0.1); color: var(--medic); border: 1px solid var(--medic); width: 100%; margin-top: 5px;}
-        .btn-medic:hover { background: var(--medic); color: #000; }
-
-        /* --- LOG OVERLAY --- */
-        #log-feed {
-            position: absolute;
-            top: 20px; right: 20px;
-            width: 250px;
-            height: 200px;
-            overflow-y: auto;
-            font-size: 0.7rem;
-            text-shadow: 1px 1px 0 #000;
-            pointer-events: none;
-            display: flex;
-            flex-direction: column-reverse; 
-            z-index: 5;
-        }
-        .log-entry { background: rgba(0,0,0,0.8); padding: 4px; margin-bottom: 2px; border-left: 2px solid #555; }
-        .log-success { border-color: var(--primary); color: #ccffcc; }
-        .log-fail { border-color: var(--alert); color: #ffcccc; }
-        .log-medic { border-color: var(--medic); color: #ccffff; }
-        .log-sys { border-color: #fff; color: #fff; font-style: italic; }
-
-        /* ANIMATIONS */
-        @keyframes flowAnim { to { stroke-dashoffset: -30; } }
-        @keyframes shake { 
-            0% { transform: translate(1px, 1px); } 
-            25% { transform: translate(-2px, -2px); }
-            50% { transform: translate(2px, 1px); } 
-            75% { transform: translate(-1px, -2px); } 
-            100% { transform: translate(0, 0); }
-        }
-        .shaking { animation: shake 0.3s linear; }
+        /* VICTORY CLASSES */
+        body.victory-mode { background-color: #05101a; }
+        body.victory-mode .station-circle { stroke: var(--calm) !important; fill: #000510 !important; box-shadow: 0 0 50px var(--calm) !important; }
+        body.victory-mode .station-icon { fill: var(--calm) !important; }
+        body.victory-mode .station-label { fill: var(--calm) !important; }
+        body.victory-mode .conduit { stroke: var(--calm) !important; stroke-width: 4; opacity: 0.5; }
+        body.victory-mode #round-indicator { color: var(--calm) !important; text-shadow: 0 0 20px var(--calm); }
+        body.victory-mode header { background: #020810; border-color: var(--calm); }
 
     </style>
 </head>
 <body>
 
-    <div class="overlay scanlines"></div>
-    <div class="overlay hazard-flash" id="flash-fx"></div>
-    
-    <svg class="overlay cracks" id="crack-fx" viewBox="0 0 100 100" preserveAspectRatio="none">
+    <div class="scanlines"></div>
+    <div class="hazard-flash" id="fx-flash"></div>
+    <svg class="crack-overlay" id="fx-crack" viewBox="0 0 100 100" preserveAspectRatio="none">
         <path id="c1" d="M0 0 L20 30 L10 40" visibility="hidden" />
         <path id="c2" d="M100 0 L70 20 L80 50" visibility="hidden" />
         <path id="c3" d="M50 100 L40 70 L60 60" visibility="hidden" />
         <path id="c4" d="M0 50 L30 50 L40 20" visibility="hidden" />
     </svg>
 
-    <header>
-        <div>
-            <div style="font-size: 0.7rem; color: #666;">PROTOCOL B-13 // STABILIZATION</div>
-            <div class="phase-indicator" id="round-title">ROUND 1: INITIAL SYNC</div>
-        </div>
-        <div class="dc-meter" id="dc-display">DC 12 CHECK</div>
-    </header>
-
-    <div class="main-vis" id="vis-container">
-        <!-- SYSTEM LOGS FLOATING -->
-        <div id="log-feed"></div>
-
-        <svg id="tri-map" viewBox="0 0 600 500">
-            <!-- CONNECTIONS -->
-            <path d="M 300 100 L 100 400" class="conduit" />
-            <path d="M 300 100 L 100 400" class="flow" id="f1" />
-
-            <path d="M 300 100 L 500 400" class="conduit" />
-            <path d="M 300 100 L 500 400" class="flow" id="f2" />
-
-            <path d="M 100 400 L 500 400" class="conduit" />
-            <path d="M 100 400 L 500 400" class="flow" id="f3" />
-
-            <!-- ALPHA -->
-            <g id="node-alpha">
-                <circle cx="300" cy="100" r="60" class="station-node" />
-                <text x="300" y="105" class="node-icon">⚙</text>
-                <text x="300" y="180" class="node-label">ALPHA (MECH)</text>
-            </g>
-
-            <!-- DELTA -->
-            <g id="node-delta">
-                <circle cx="100" cy="400" r="60" class="station-node" />
-                <text x="100" y="405" class="node-icon">💧</text>
-                <text x="100" y="480" class="node-label">DELTA (PLUMB)</text>
-            </g>
-
-            <!-- ZETA -->
-            <g id="node-zeta">
-                <circle cx="500" cy="400" r="60" class="station-node" />
-                <text x="500" y="405" class="node-icon">⚡</text>
-                <text x="500" y="480" class="node-label">ZETA (ELEC)</text>
-            </g>
-        </svg>
+    <!-- OVERLAY FOR MESSAGES -->
+    <div id="system-overlay">
+        <div id="sys-msg-main"></div>
+        <div id="sys-msg-sub"></div>
     </div>
 
-    <div class="control-deck">
-        <!-- ALPHA -->
-        <div class="panel">
-            <h3>ALPHA: MECHANIC</h3>
-            <div class="desc-text" id="desc-alpha">Loading diagnostic...</div>
-            <div class="btn-group">
-                <button class="btn-ok" onclick="action('alpha', true)">STABILIZE</button>
-                <button class="btn-fail" onclick="action('alpha', false)">FAILURE</button>
+    <!-- SCREEN 1: MAIN HUB -->
+    <div id="hub-screen" class="screen active">
+        <header>
+            <div id="round-indicator" style="font-size: 1.2rem; color: #fff; text-shadow: 0 0 5px var(--primary);">ROUND 1: INITIAL SYNC</div>
+            <div style="color: var(--dim);">B-13 DISTRIBUTION MAP</div>
+        </header>
+
+        <div class="map-container">
+            <svg width="600" height="500" viewBox="0 0 600 500">
+                <line x1="300" y1="100" x2="100" y2="400" class="conduit" id="line-ad" />
+                <line x1="300" y1="100" x2="500" y2="400" class="conduit" id="line-az" />
+                <line x1="100" y1="400" x2="500" y2="400" class="conduit" id="line-dz" />
+
+                <g class="station-btn" id="node-alpha" onclick="openStation('alpha')">
+                    <circle cx="300" cy="100" r="60" class="station-circle" />
+                    <text x="300" y="105" class="station-icon">⚙</text>
+                    <text x="300" y="180" class="station-label">ALPHA</text>
+                </g>
+
+                <g class="station-btn" id="node-delta" onclick="openStation('delta')">
+                    <circle cx="100" cy="400" r="60" class="station-circle" />
+                    <text x="100" y="405" class="station-icon">💧</text>
+                    <text x="100" y="480" class="station-label">DELTA</text>
+                </g>
+
+                <g class="station-btn" id="node-zeta" onclick="openStation('zeta')">
+                    <circle cx="500" cy="400" r="60" class="station-circle" />
+                    <text x="500" y="405" class="station-icon">⚡</text>
+                    <text x="500" y="480" class="station-label">ZETA</text>
+                </g>
+            </svg>
+        </div>
+        
+        <div style="padding: 20px; border-top: 1px solid #222; display: flex; justify-content: center;">
+            <button onclick="medicReset()" style="max-width: 300px; border-color: var(--medic); color: var(--medic); background: rgba(0,200,255,0.05);">MEDIC: STABILIZE CREW</button>
+        </div>
+    </div>
+
+    <!-- SCREEN 2: DETAIL VIEW -->
+    <div id="detail-screen" class="screen hidden">
+        <div class="detail-header">
+            <div id="detail-title" style="font-size: 1.5rem; color: var(--primary);">STATION ALPHA</div>
+            <button class="btn-back" onclick="closeStation()">BACK</button>
+        </div>
+
+        <div class="detail-body">
+            <div class="visualizer" id="viz-container">
+                <div id="viz-content" style="width:100%; height:100%; display:flex; justify-content:center; align-items:center;"></div>
+            </div>
+
+            <div class="data-panel">
+                <div class="data-block">
+                    <span class="data-label">DIAGNOSTIC READOUT</span>
+                    <div id="txt-desc" class="data-text">Loading...</div>
+                </div>
+                <div class="data-block">
+                    <span class="data-label">STABILIZATION HINT</span>
+                    <div id="txt-hint" class="data-text" style="color: var(--warn);">Loading...</div>
+                </div>
+                <div class="data-block">
+                    <span class="data-label">FAILURE CONSEQUENCE</span>
+                    <div id="txt-fail" class="data-text" style="color: var(--alert);">Loading...</div>
+                </div>
+                <div id="status-msg" style="margin-top:auto; font-size: 1.2rem; text-align:center;"></div>
             </div>
         </div>
 
-        <!-- DELTA -->
-        <div class="panel">
-            <h3>DELTA: PLUMBER</h3>
-            <div class="desc-text" id="desc-delta">Loading diagnostic...</div>
-            <div class="btn-group">
-                <button class="btn-ok" onclick="action('delta', true)">STABILIZE</button>
-                <button class="btn-fail" onclick="action('delta', false)">FAILURE</button>
-            </div>
-        </div>
-
-        <!-- ZETA -->
-        <div class="panel">
-            <h3>ZETA: ELECTRICIAN</h3>
-            <div class="desc-text" id="desc-zeta">Loading diagnostic...</div>
-            <div class="btn-group">
-                <button class="btn-ok" onclick="action('zeta', true)">STABILIZE</button>
-                <button class="btn-fail" onclick="action('zeta', false)">FAILURE</button>
-            </div>
-        </div>
-
-        <!-- MEDIC -->
-        <div class="panel medic-panel">
-            <h3>MEDIC SUPPORT</h3>
-            <div class="desc-text" id="desc-medic" style="color:#00aaff;">Ready to treat burns/shocks.</div>
-            <button class="btn-medic" onclick="medicAction()">APPLY TREATMENT</button>
-            <button class="btn-medic" onclick="forceNextRound()" style="margin-top:auto; border-color:#444; color:#666; font-size:0.6rem;">[GM: FORCE NEXT]</button>
+        <div class="controls">
+            <button class="btn-success" onclick="resolveStation(true)">STABILIZE (SUCCESS)</button>
+            <button class="btn-fail" onclick="resolveStation(false)">SURGE (FAILURE)</button>
         </div>
     </div>
 
     <script>
-        // --- DATA: THE SCENARIO ---
-        const scenario = {
+        // --- VISUAL GENERATORS ---
+
+        function getAlphaViz(round, status) {
+            let color = '#ffaa00'; 
+            let speed = '4s';
+            let effectClass = '';
+
+            if (round === 1) { color = '#ffff00'; speed = '6s'; }
+            if (round === 3) { color = '#ff3333'; speed = '1s'; }
+
+            if (status === 'success') {
+                color = '#33ff77'; speed = '2s'; effectClass = 'pulse-green';
+            } else if (status === 'fail') {
+                color = '#ff0000'; speed = '0.2s'; effectClass = 'vibrate';
+            }
+
+            return `
+            <svg width="240" height="240" viewBox="0 0 200 200" class="${effectClass}">
+                <defs><filter id="glow-a"><feGaussianBlur stdDeviation="2" result="coloredBlur"/><feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+                <g style="transform-origin: 100px 100px; animation: spin ${speed} linear infinite;">
+                    <circle cx="100" cy="100" r="90" fill="none" stroke="${color}" stroke-width="2" stroke-dasharray="10, 5" />
+                    <circle cx="100" cy="100" r="85" fill="none" stroke="${color}" stroke-width="1" />
+                </g>
+                <g style="transform-origin: 100px 100px; animation: spinRev ${speed} linear infinite;">
+                    <path d="M100,40 L100,160 M40,100 L160,100" stroke="${color}" stroke-width="8" stroke-linecap="round" />
+                    <circle cx="100" cy="100" r="60" fill="#000" stroke="${color}" stroke-width="4" />
+                    <circle cx="100" cy="100" r="50" fill="none" stroke="${color}" stroke-width="5" stroke-dasharray="8,4" />
+                </g>
+            </svg>`;
+        }
+
+        function getDeltaViz(round, status) {
+            let color = '#00ccff';
+            let needleColor = '#ffaa00';
+            // FIX: Animation name and duration properly set in style
+            let animStyle = `animation: jitterAnim 2s ease-in-out infinite alternate;`; 
+
+            if (round === 3) { 
+                needleColor = '#ff3333'; 
+                animStyle = `animation: jitterAnim 0.2s linear infinite alternate;`; // Faster jitter 
+            }
+
+            if (status === 'success') {
+                color = '#33ff77'; needleColor = '#33ff77';
+                animStyle = `transition: transform 1s; transform: rotate(0deg);`; // Lock to center
+            } else if (status === 'fail') {
+                color = '#ff0000'; needleColor = '#ffffff';
+                animStyle = `animation: jitterAnim 0.05s linear infinite;`;
+            }
+
+            return `
+            <svg width="240" height="240" viewBox="0 0 200 200">
+                <defs><filter id="glow-d"><feGaussianBlur stdDeviation="2" result="coloredBlur"/><feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+                <path d="M30,100 A70,70 0 0,1 170,100" fill="none" stroke="${color}" stroke-width="2" stroke-dasharray="2,2" filter="url(#glow-d)" />
+                <line x1="100" y1="20" x2="100" y2="35" stroke="${color}" stroke-width="2" />
+                <g style="transform-origin: 100px 100px; ${animStyle}">
+                    <polygon points="95,100 100,25 105,100" fill="${needleColor}" filter="url(#glow-d)" />
+                    <circle cx="100" cy="100" r="10" fill="${needleColor}" />
+                </g>
+                <text x="100" y="140" fill="${color}" font-size="14" text-anchor="middle" font-family="monospace">${status === 'success' ? 'STABLE' : 'PSI LEVEL'}</text>
+            </svg>`;
+        }
+
+        function getZetaViz(round, status) {
+            let color = '#33ff77';
+            let speed = round === 1 ? '2s' : (round === 2 ? '0.5s' : '0.1s');
+            let path = "M0 100 Q 50 50 100 100 T 200 100"; 
+
+            if (status === 'success') {
+                color = '#33ff77'; speed = '4s'; path = "M0 100 L 200 100";
+            } else if (status === 'fail') {
+                color = '#ff0000'; speed = '0.05s'; path = "M0 100 L 10 20 L 20 180 L 30 50 L 40 150 L 200 100";
+            } else if (round > 1) {
+                color = round === 2 ? '#ffaa00' : '#ffffff';
+                path = "M0 100 L 25 50 L 50 100 L 75 150 L 100 100 L 200 100";
+            }
+
+            return `
+            <svg width="240" height="240" viewBox="0 0 200 200">
+                <defs><filter id="glow-z"><feGaussianBlur stdDeviation="3" result="coloredBlur"/><feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+                <line x1="0" y1="100" x2="200" y2="100" stroke="${color}" stroke-width="1" opacity="0.3" />
+                <path d="${path}" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow-z)">
+                    <animate attributeName="stroke-dashoffset" from="0" to="200" dur="${speed}" repeatCount="indefinite" />
+                    ${status === 'success' ? '<animate attributeName="d" values="M0 100 Q 50 90 100 100 T 200 100; M0 100 Q 50 110 100 100 T 200 100; M0 100 Q 50 90 100 100 T 200 100" dur="2s" repeatCount="indefinite" />' : ''}
+                </path>
+            </svg>`;
+        }
+
+        // --- SCENARIO DATA ---
+        const rounds = {
             1: {
-                title: "ROUND 1: INITIAL STABILIZATION",
-                dc: "DC 12",
-                alpha: {
-                    desc: "Gears grinding unevenly. Yellow heartbeat light. Needs specific rotation sequence.",
-                    pass: "Relay snaps into sync. Gears stabilize.",
-                    fail: "SPARKS! 1d3 Dmg to Delta or Zeta. Target gets -1 check."
-                },
-                delta: {
-                    desc: "Valves sweating. Leaking mist. Hissing like a living thing.",
-                    pass: "Pressure equalizes. Mist stops.",
-                    fail: "COOLANT SPRAY! Roll AGI DC 12 or slip (1d2 dmg). Floor is slippery (-1 checks)."
-                },
-                zeta: {
-                    desc: "Blue arcs jumping. Voltage spiking. Stuttering flashes.",
-                    pass: "Voltage stabilizes. Healthy hum.",
-                    fail: "SHOCK JOLT! 1d3 Dmg to Alpha or Delta. Hand tremors (-1)."
-                },
-                medic: "Stabilize shocked/soaked players to remove -1 Penalty."
+                name: "ROUND 1: INITIAL SYNC",
+                alpha: { desc: "Gears grinding in inconsistent rhythm.", hint: "Rotate gears in sequence.", fail: "SPARKS! Nearby stations take Damage." },
+                delta: { desc: "Valves sweating. Mist leaking.", hint: "Tighten coupling. Turn slowly.", fail: "SPRAY! Make AGI Save or Slip." },
+                zeta: { desc: "Voltage spiking wildly.", hint: "Insulate misaligned wires.", fail: "SHOCK! Hands suffer tremors." }
             },
             2: {
-                title: "ROUND 2: COORDINATION",
-                dc: "DC 13",
-                alpha: {
-                    desc: "Relay shuddering violently. Dangerously close to misalignment.",
-                    pass: "Teeth align perfectly. Emits steady tone.",
-                    fail: "FEEDBACK SPARK! Delta & Zeta roll AGI DC 12 or take 1d3 Dmg."
-                },
-                delta: {
-                    desc: "Pipes rumbling. Cracking sound from coupler.",
-                    pass: "Coolant cycle synchronizes.",
-                    fail: "VALVE BLOWOUT! Coolant splash. All players -1 AGI."
-                },
-                zeta: {
-                    desc: "Board warm to touch. Circuits flickering orange.",
-                    pass: "Voltage syncs. Conduits burn steady blue.",
-                    fail: "SURGE! Random player takes 1d3 Dmg + shock (-1)."
-                },
-                medic: "Anticipate failure (+2 to next roll) or wipe coolant."
+                name: "ROUND 2: COORDINATION",
+                alpha: { desc: "Relay shuddering violently.", hint: "Micro-increments. Sync rotation.", fail: "FEEDBACK! Delta & Zeta AGI Save." },
+                delta: { desc: "Pipes rumbling. Cracking sound.", hint: "Adjust two valves at once.", fail: "BLOWOUT! All suffer AGI Penalty." },
+                zeta: { desc: "Board warm. Circuits flickering.", hint: "Re-route at click.", fail: "SURGE! Random player Shock effect." }
             },
             3: {
-                title: "ROUND 3: FINAL SYNC",
-                dc: "DC 14",
-                alpha: {
-                    desc: "Gears glowing orange. One jolt from snapping.",
-                    pass: "FINAL LOCK. Alpha stabilizes permanently.",
-                    fail: "BACKLASH! 1d3 Dmg to self. Delta DC increases +1."
-                },
-                delta: {
-                    desc: "Steam venting intermittently. Roaring like a geyser.",
-                    pass: "FINAL LOCK. Pressure hits green threshold.",
-                    fail: "SCALD! 1d3 Dmg to self. Zeta DC increases +1."
-                },
-                zeta: {
-                    desc: "High pitch rising tone. Circuits white-hot.",
-                    pass: "FINAL LOCK. Routing complete.",
-                    fail: "OVERLOAD! All roll CON DC 12 or 1d3 Dmg. Station unstable."
-                },
-                medic: "Prevent knockdown OR Give +3 Stim."
+                name: "ROUND 3: FINAL SYNC",
+                alpha: { desc: "Gears glowing orange. Snapping imminent.", hint: "Fine-tune tension. Light taps.", fail: "BACKLASH! Take Damage. Delta difficulty increases." },
+                delta: { desc: "Steam venting. Roaring like a geyser.", hint: "Apply Counter-pressure.", fail: "SCALD! Zeta difficulty increases." },
+                zeta: { desc: "High pitch whine. Circuits white-hot.", hint: "Ground connection first.", fail: "OVERLOAD! All make CON Save." }
             }
         };
 
-        // --- STATE ---
         let currentRound = 1;
-        let status = { alpha: false, delta: false, zeta: false };
-        let cracksVisible = 0;
+        let stationStatus = { alpha: false, delta: false, zeta: false };
+        let currentStationId = null;
+        let crackCount = 0;
 
-        // --- INITIALIZE ---
-        loadRound(1);
-
-        function loadRound(r) {
-            const data = scenario[r];
-            document.getElementById('round-title').innerText = data.title;
-            document.getElementById('dc-display').innerText = data.dc;
+        function openStation(id) {
+            if(stationStatus[id]) return;
+            currentStationId = id;
+            renderStation('neutral');
             
-            // Update Descriptions
-            document.getElementById('desc-alpha').innerText = data.alpha.desc;
-            document.getElementById('desc-delta').innerText = data.delta.desc;
-            document.getElementById('desc-zeta').innerText = data.zeta.desc;
-            document.getElementById('desc-medic').innerText = data.medic;
-
-            // Reset Visuals
-            resetNodes();
-            log("SYS", `INITIATING ${data.title}...`);
+            document.getElementById('hub-screen').classList.remove('active');
+            document.getElementById('hub-screen').classList.add('hidden');
+            document.getElementById('detail-screen').classList.remove('hidden');
+            document.getElementById('detail-screen').classList.add('active');
         }
 
-        function action(role, success) {
-            const data = scenario[currentRound][role];
-            const node = document.getElementById('node-' + role);
+        function renderStation(state) {
+            const data = rounds[currentRound][currentStationId];
+            let vizHTML = "";
+            if(currentStationId === 'alpha') vizHTML = getAlphaViz(currentRound, state);
+            if(currentStationId === 'delta') vizHTML = getDeltaViz(currentRound, state);
+            if(currentStationId === 'zeta')  vizHTML = getZetaViz(currentRound, state);
 
-            // Reset class
-            node.classList.remove('success', 'fail');
-            void node.offsetWidth; // Reflow
+            document.getElementById('detail-title').innerText = `STATION ${currentStationId.toUpperCase()}`;
+            document.getElementById('txt-desc').innerText = data.desc;
+            document.getElementById('txt-hint').innerText = data.hint;
+            document.getElementById('txt-fail').innerText = data.fail;
+            document.getElementById('viz-content').innerHTML = vizHTML;
+            document.getElementById('status-msg').innerText = state === 'neutral' ? "" : (state === 'success' ? "CALIBRATING... SUCCESS" : "CRITICAL ERROR DETECTED");
+            
+            const controls = document.querySelector('.controls');
+            if(state === 'success') controls.style.display = 'none';
+            else controls.style.display = 'flex';
+        }
 
-            if (success) {
-                node.classList.add('success');
-                log("SUCCESS", `[${role.toUpperCase()}] ${data.pass}`);
-                status[role] = true;
-                checkWin();
+        function closeStation() {
+            document.getElementById('detail-screen').classList.remove('active');
+            document.getElementById('detail-screen').classList.add('hidden');
+            document.getElementById('hub-screen').classList.remove('hidden');
+            document.getElementById('hub-screen').classList.add('active');
+            currentStationId = null;
+        }
+
+        function resolveStation(success) {
+            if(success) {
+                renderStation('success');
+                stationStatus[currentStationId] = true;
+                document.getElementById('node-' + currentStationId).classList.add('done');
+                setTimeout(() => { closeStation(); checkRoundComplete(); }, 1500);
             } else {
-                node.classList.add('fail');
-                log("FAIL", `[${role.toUpperCase()}] ${data.fail}`);
+                renderStation('fail');
                 triggerDamage();
             }
         }
 
-        function medicAction() {
-            log("MEDIC", "Applying treatment / Stabilization protocol...");
-        }
-
-        function checkWin() {
-            if (status.alpha && status.delta && status.zeta) {
-                setTimeout(() => {
-                    if(currentRound < 3) {
-                        currentRound++;
-                        status = { alpha: false, delta: false, zeta: false };
-                        log("SYS", "ALL STATIONS GREEN. ADVANCING...");
-                        loadRound(currentRound);
-                    } else {
-                        victory();
-                    }
-                }, 1500);
-            }
-        }
-
-        function forceNextRound() {
-            if(currentRound < 3) {
-                currentRound++;
-                status = { alpha: false, delta: false, zeta: false };
-                loadRound(currentRound);
-            } else {
-                victory();
-            }
-        }
-
         function triggerDamage() {
-            // 1. Flash
-            const flash = document.getElementById('flash-fx');
+            document.body.classList.add('shaking');
+            setTimeout(() => document.body.classList.remove('shaking'), 200);
+            const flash = document.getElementById('fx-flash');
             flash.style.opacity = 1;
             setTimeout(() => flash.style.opacity = 0, 200);
-
-            // 2. Shake
-            document.getElementById('vis-container').classList.add('shaking');
-            setTimeout(() => document.getElementById('vis-container').classList.remove('shaking'), 300);
-
-            // 3. Crack
-            cracksVisible++;
-            if(cracksVisible <= 4) {
-                document.getElementById('crack-fx').style.opacity = 0.8;
-                document.getElementById('c' + cracksVisible).setAttribute('visibility', 'visible');
+            crackCount++;
+            if(crackCount <= 4) {
+                document.getElementById('fx-crack').style.opacity = 1;
+                document.getElementById('c' + crackCount).setAttribute('visibility', 'visible');
             }
         }
 
-        function victory() {
-            document.body.style.background = "#001100";
-            document.getElementById('round-title').innerText = "SYSTEM RESTORED";
-            document.getElementById('round-title').style.color = "#fff";
-            log("SYS", "REACTOR STABILIZED. BRIDGE UNLOCKED.");
-            document.querySelectorAll('.station-node').forEach(n => n.style.fill = "#00ff00");
+        function medicReset() {
+            const btn = event.target;
+            btn.innerText = "TREATING...";
+            btn.style.background = "var(--medic)";
+            btn.style.color = "#000";
+            setTimeout(() => {
+                btn.innerText = "MEDIC: STABILIZE CREW";
+                btn.style.background = "rgba(0,200,255,0.05)";
+                btn.style.color = "var(--medic)";
+            }, 1000);
         }
 
-        function resetNodes() {
-            document.querySelectorAll('.station-node').forEach(n => {
-                n.classList.remove('success', 'fail');
-            });
-        }
-
-        function log(type, msg) {
-            const feed = document.getElementById('log-feed');
-            const entry = document.createElement('div');
-            entry.classList.add('log-entry');
-            if(type === 'SUCCESS') entry.classList.add('log-success');
-            if(type === 'FAIL') entry.classList.add('log-fail');
-            if(type === 'MEDIC') entry.classList.add('log-medic');
-            if(type === 'SYS') entry.classList.add('log-sys');
+        function showOverlay(mainText, subText, duration, callback) {
+            const overlay = document.getElementById('system-overlay');
+            const main = document.getElementById('sys-msg-main');
+            const sub = document.getElementById('sys-msg-sub');
             
-            entry.innerText = `> ${msg}`;
-            feed.prepend(entry);
+            main.innerHTML = mainText;
+            sub.innerHTML = subText;
+            overlay.style.opacity = 1;
+            
+            if(duration > 0) {
+                setTimeout(() => {
+                    overlay.style.opacity = 0;
+                    if(callback) callback();
+                }, duration);
+            } else if (callback) {
+                callback(); // for permanent overlay
+            }
         }
 
+        function checkRoundComplete() {
+            if(stationStatus.alpha && stationStatus.delta && stationStatus.zeta) {
+                if(currentRound < 3) {
+                    // --- ROUND TRANSITION ---
+                    showOverlay(
+                        `ROUND ${currentRound} COMPLETE`,
+                        `INITIATING SEQUENCE ${currentRound + 1}... STANDBY.`,
+                        3000,
+                        () => {
+                            currentRound++;
+                            stationStatus = { alpha: false, delta: false, zeta: false };
+                            document.querySelectorAll('.station-btn').forEach(btn => btn.classList.remove('done'));
+                            document.getElementById('round-indicator').innerText = rounds[currentRound].name;
+                            document.getElementById('round-indicator').style.color = "var(--warn)";
+                            
+                            // Clear cracks for fresh round? Optional.
+                            // document.getElementById('fx-crack').style.opacity = 0;
+                        }
+                    );
+                } else {
+                    // --- FINAL VICTORY ---
+                    triggerVictory();
+                }
+            }
+        }
+
+        function triggerVictory() {
+            // 1. Clear Damage
+            document.getElementById('fx-crack').style.opacity = 0;
+            
+            // 2. Change Visual Mode
+            document.body.classList.add('victory-mode');
+            
+            // 3. Overlay Sequence
+            const overlay = document.getElementById('system-overlay');
+            const main = document.getElementById('sys-msg-main');
+            const sub = document.getElementById('sys-msg-sub');
+            
+            main.innerHTML = "B-13 STABILIZATION COMPLETE";
+            main.style.color = "var(--calm)";
+            sub.innerHTML = ""; // Clear for typing
+            overlay.style.opacity = 1;
+
+            const victoryText = `
+                Reactor Bay energy distribution is secure.
+                All systems returning to optimal levels.
+                <br><br>
+                Crew performance standard: exemplary.
+            `;
+
+            // Typewriter effect
+            let i = 0;
+            let txt = victoryText.replace(/<br>/g, '|'); // quick hack for lines
+            let speed = 50;
+            
+            function typeWriter() {
+                if (i < victoryText.length) {
+                    sub.innerHTML = victoryText.substring(0, i+1);
+                    i++;
+                    setTimeout(typeWriter, speed);
+                }
+            }
+            setTimeout(typeWriter, 1000);
+        }
     </script>
 </body>
 </html>
