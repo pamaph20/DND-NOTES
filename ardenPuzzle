@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ARDEN-007 // SYSTEM BRIDGE</title>
+    <style>
+        /* --- HIGH CONTRAST FOR STREAMING --- */
+        :root {
+            --bg: #000000;
+            --amber: #ffb000;
+            --amber-dim: #553a00;
+            --red: #ff0000;
+            --red-dim: #440000;
+            --blue: #00ffff;
+            --scan: rgba(0, 0, 0, 0.5);
+        }
+
+        body {
+            margin: 0; background: var(--bg); color: var(--amber);
+            font-family: 'Courier New', monospace; overflow: hidden;
+            height: 100vh; display: flex; align-items: center; justify-content: center;
+            user-select: none; cursor: crosshair;
+        }
+
+        /* --- SCREEN EFFECTS --- */
+        .scanlines {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(0,0,0,0) 50%, rgba(0,0,0,0.25) 50%), linear-gradient(90deg, rgba(255,0,0,0.06), rgba(0,255,0,0.02), rgba(0,0,255,0.06));
+            background-size: 100% 3px, 6px 100%; pointer-events: none; z-index: 10;
+        }
+        
+        .monitor-frame {
+            width: 90vw; height: 85vh;
+            border: 3px solid #333;
+            box-shadow: 0 0 50px rgba(255, 176, 0, 0.1);
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            grid-template-rows: 80px 1fr 150px;
+            gap: 10px; padding: 20px;
+            background: #050505;
+            position: relative;
+        }
+
+        /* --- HEADER --- */
+        .header {
+            grid-column: 1 / -1;
+            border-bottom: 2px solid var(--amber);
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 2rem; font-weight: bold; text-shadow: 0 0 10px var(--amber-dim);
+        }
+        .blink { animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        /* --- LEFT SIDE: STATUS & FACE --- */
+        .status-panel {
+            grid-row: 2 / 3;
+            border: 1px solid #333;
+            background: #0a0a0a;
+            display: flex; flex-direction: column;
+            padding: 10px;
+        }
+
+        .face-box {
+            height: 250px; width: 100%;
+            border: 1px solid #222; background: #000;
+            display: flex; justify-content: center; align-items: center;
+            margin-bottom: 20px;
+        }
+        .ascii-face {
+            font-size: 14px; white-space: pre; font-weight: bold;
+            line-height: 14px; text-align: center;
+        }
+
+        .data-row {
+            display: flex; justify-content: space-between;
+            margin-bottom: 10px; font-size: 1.1rem; border-bottom: 1px solid #222;
+        }
+
+        /* --- CENTER: THE GAME --- */
+        .game-panel {
+            grid-column: 2; grid-row: 2 / 3;
+            border: 1px solid var(--amber-dim);
+            background: radial-gradient(circle, #110a00 0%, #000 90%);
+            position: relative;
+            display: flex; justify-content: center; align-items: center;
+            flex-direction: column;
+        }
+
+        /* PUZZLE 1: VENTING */
+        #p1-container { width: 80%; height: 100%; display: flex; flex-direction: column; justify-content: center; }
+        
+        .bars-wrap { margin-bottom: 30px; }
+        .bar-title { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 1.2rem; font-weight: bold; }
+        
+        .track { width: 100%; height: 30px; background: #111; border: 2px solid #444; margin-bottom: 15px; position: relative; }
+        .fill { height: 100%; width: 0%; transition: width 0.1s linear; }
+        
+        /* Bad Bar */
+        #surge-fill { background: var(--red); box-shadow: 0 0 20px var(--red); }
+        /* Good Bar */
+        #vent-fill { background: var(--blue); box-shadow: 0 0 10px var(--blue); }
+
+        .grid-nodes {
+            display: grid; grid-template-columns: repeat(3, 100px); gap: 15px;
+            margin: 0 auto;
+        }
+        .node {
+            width: 100px; height: 100px;
+            background: #080808; border: 2px solid #333;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 2rem; color: #222; cursor: pointer;
+            transition: 0.05s;
+        }
+        .node.active {
+            background: var(--amber); color: #000;
+            border-color: #fff; box-shadow: 0 0 30px var(--amber);
+        }
+        .node.active:active { transform: scale(0.9); background: #fff; }
+
+        /* PUZZLE 2: RINGS */
+        #p2-container { display: none; flex-direction: column; align-items: center; width: 100%; }
+        canvas { border-radius: 50%; background: #000; box-shadow: 0 0 40px rgba(255, 176, 0, 0.1); }
+        .prompt { margin-top: 20px; font-size: 1.5rem; animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { opacity: 0.5; } 100% { opacity: 1; } }
+
+        /* --- BOTTOM: LOGS --- */
+        .log-panel {
+            grid-column: 1 / -1; grid-row: 3;
+            border-top: 2px solid #333;
+            padding-top: 10px; overflow: hidden;
+            display: flex; flex-direction: column; justify-content: flex-end;
+        }
+        .log-entry { font-size: 1rem; margin-bottom: 5px; text-transform: uppercase; }
+        .sys { color: #666; }
+        .warn { color: var(--red); text-shadow: 0 0 5px var(--red); }
+        .success { color: var(--blue); }
+        .arden { color: #ff8800; font-style: italic; }
+
+        /* ALERTS */
+        .damage-flash {
+            animation: flash 0.4s ease-in-out;
+        }
+        @keyframes flash {
+            0%, 100% { background: #050505; }
+            50% { background: #550000; }
+        }
+        
+        .overlay-msg {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); display: none;
+            justify-content: center; align-items: center; flex-direction: column;
+            z-index: 20; text-align: center;
+        }
+        .overlay-msg h1 { font-size: 3rem; color: var(--red); border: 4px solid var(--red); padding: 20px; background: #000; }
+
+    </style>
+</head>
+<body>
+
+<div class="scanlines"></div>
+
+<!-- ALERT OVERLAY -->
+<div class="monitor-frame" id="main-frame">
+    
+    <!-- HEADER -->
+    <div class="header">
+        <span>ARDEN-007 // MANUAL OVERRIDE</span>
+        <span id="phase-display" style="color: var(--red);">PHASE 1: PRESSURE VENT</span>
+    </div>
+
+    <!-- LEFT STATUS -->
+    <div class="status-panel">
+        <div class="face-box">
+            <div class="ascii-face" id="face" style="color: var(--amber)">
+   .---.
+  /  .  \
+ |  (o)  |
+  \  -  /
+   '---'
+            </div>
+        </div>
+        <div class="data-row">
+            <span>CORE TEMP</span>
+            <span id="temp-display" class="blink" style="color:var(--red)">CRITICAL</span>
+        </div>
+        <div class="data-row">
+            <span>INTEGRITY</span>
+            <span id="integrity-display">98.2%</span>
+        </div>
+        <div class="data-row" style="border:none; margin-top: 20px; color: #666; font-size: 0.9rem;">
+            INSTRUCTIONS:<br>
+            1. VENT PLASMA TO OPEN CASING.<br>
+            2. ALIGN LOCKING MECHANISM.<br>
+            WARNING: FAILURE DISCHARGES ENERGY.
+        </div>
+    </div>
+
+    <!-- CENTER GAME -->
+    <div class="game-panel">
+        
+        <!-- PUZZLE 1 -->
+        <div id="p1-container">
+            <div class="bars-wrap">
+                <div class="bar-title">
+                    <span style="color:var(--red)">SURGE BUILDUP (DANGER)</span>
+                    <span id="surge-txt">0%</span>
+                </div>
+                <div class="track"><div class="fill" id="surge-fill"></div></div>
+
+                <div class="bar-title">
+                    <span style="color:var(--blue)">VENT PROGRESS (REQUIRED)</span>
+                    <span id="vent-txt">0%</span>
+                </div>
+                <div class="track"><div class="fill" id="vent-fill"></div></div>
+            </div>
+
+            <div class="grid-nodes" id="grid">
+                <!-- Nodes generated by JS -->
+            </div>
+        </div>
+
+        <!-- PUZZLE 2 -->
+        <div id="p2-container">
+            <h2 style="color: var(--amber); letter-spacing: 4px;">MECHANICAL INTERFACE</h2>
+            <canvas id="lockCanvas" width="400" height="400"></canvas>
+            <div class="prompt">[ PRESS SPACEBAR TO LOCK ]</div>
+        </div>
+
+        <!-- VICTORY -->
+        <div id="victory-screen" class="overlay-msg">
+            <h1 style="color: var(--blue); border-color: var(--blue);">SYSTEM ISOLATED</h1>
+            <p style="font-size: 1.5rem; margin-top: 20px;">ARDEN-007 OFFLINE</p>
+            <p style="color: #666;">DATA CAPSULE EJECTED</p>
+        </div>
+
+        <!-- FAILURE OVERLAY -->
+        <div id="fail-screen" class="overlay-msg" style="background: rgba(50,0,0,0.8);">
+            <h1>CRITICAL DISCHARGE</h1>
+            <p style="font-size: 1.5rem; color: #fff;">CREW VITALITY COMPROMISED</p>
+            <p>RESETTING SYSTEMS...</p>
+        </div>
+
+    </div>
+
+    <!-- LOGS -->
+    <div class="log-panel" id="log-feed">
+        <div class="log-entry sys">Connection Established...</div>
+        <div class="log-entry warn">WARNING: Casing Temperature 4500K. Do not touch.</div>
+    </div>
+</div>
+
+<script>
+/* ------------------------------------------------------------------
+   AUDIO SYNTHESIZER (No files needed)
+   ------------------------------------------------------------------ */
+const Sfx = {
+    ctx: null,
+    init: function() { if(!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)(); },
+    play: function(type) {
+        if(!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const now = this.ctx.currentTime;
+        
+        if (type === 'click') {
+            osc.type = 'square'; osc.frequency.setValueAtTime(600, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+            osc.start(); osc.stop(now + 0.1);
+        } else if (type === 'alarm') {
+            osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, now);
+            osc.frequency.linearRampToValueAtTime(100, now + 0.3);
+            gain.gain.setValueAtTime(0.5, now);
+            gain.gain.linearRampToValueAtTime(0.001, now + 0.3);
+            osc.start(); osc.stop(now + 0.3);
+        } else if (type === 'lock') {
+            osc.type = 'sine'; osc.frequency.setValueAtTime(440, now);
+            gain.gain.setValueAtTime(0.3, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+            osc.start(); osc.stop(now + 0.2);
+        }
+        osc.connect(gain); gain.connect(this.ctx.destination);
+    }
+};
+
+/* ------------------------------------------------------------------
+   LOGGING SYSTEM
+   ------------------------------------------------------------------ */
+function log(msg, type='sys') {
+    const feed = document.getElementById('log-feed');
+    const div = document.createElement('div');
+    div.className = `log-entry ${type}`;
+    div.innerText = `>> ${msg}`;
+    feed.appendChild(div);
+    feed.scrollTop = feed.scrollHeight;
+}
+
+/* ------------------------------------------------------------------
+   PUZZLE 1: VENTING (HARD MODE)
+   ------------------------------------------------------------------ */
+const P1 = {
+    surge: 0,
+    vent: 0,
+    activeIdx: -1,
+    nodes: [],
+    running: true,
+    decayRate: 0.05, // Vent progress decays constantly
+    surgeRate: 0.12, // Surge fills constantly
+
+    init: function() {
+        const grid = document.getElementById('grid');
+        // Create 9 Nodes
+        for(let i=0; i<9; i++) {
+            const n = document.createElement('div');
+            n.className = 'node';
+            n.innerText = "⚠";
+            n.onmousedown = () => this.click(i);
+            grid.appendChild(n);
+            this.nodes.push(n);
+        }
+        this.moveNode();
+        this.loop();
+        
+        // Node moves automatically every 1.5s to make it harder
+        setInterval(() => { if(this.running) this.moveNode(); }, 1500);
+    },
+
+    moveNode: function() {
+        if(this.activeIdx !== -1) this.nodes[this.activeIdx].classList.remove('active');
+        this.activeIdx = Math.floor(Math.random() * 9);
+        this.nodes[this.activeIdx].classList.add('active');
+    },
+
+    click: function(i) {
+        if(!this.running) return;
+        Sfx.init();
+        
+        if(i === this.activeIdx) {
+            // Success click
+            Sfx.play('click');
+            this.vent += 8; // Gain progress
+            this.moveNode();
+            this.surge -= 1; // Tiny relief
+        } else {
+            // Miss click
+            Sfx.play('alarm');
+            this.surge += 15; // Big penalty
+            log("INPUT ERROR: SURGE SPIKE", "warn");
+        }
+    },
+
+    loop: function() {
+        if(!this.running) return;
+        
+        // Logic
+        this.surge += this.surgeRate;
+        if(this.vent > 0) this.vent -= this.decayRate; // Decay
+        
+        // Clamp
+        this.surge = Math.min(100, Math.max(0, this.surge));
+        this.vent = Math.min(100, Math.max(0, this.vent));
+        
+        // UI Update
+        document.getElementById('surge-fill').style.width = this.surge + "%";
+        document.getElementById('vent-fill').style.width = this.vent + "%";
+        document.getElementById('surge-txt').innerText = Math.floor(this.surge) + "%";
+        document.getElementById('vent-txt').innerText = Math.floor(this.vent) + "%";
+        
+        // Face Reaction
+        Face.update(this.surge);
+
+        // Check State
+        if(this.surge >= 100) {
+            this.fail();
+        } else if (this.vent >= 100) {
+            this.win();
+        }
+
+        requestAnimationFrame(() => this.loop());
+    },
+
+    fail: function() {
+        Sfx.play('alarm');
+        const screen = document.getElementById('fail-screen');
+        screen.style.display = 'flex';
+        document.getElementById('main-frame').classList.add('damage-flash');
+        
+        log("CRITICAL FAILURE. EXTERNAL DISCHARGE.", "warn");
+        log("ARDEN: \"GET AWAY FROM ME!\"", "arden");
+        
+        setTimeout(() => {
+            screen.style.display = 'none';
+            document.getElementById('main-frame').classList.remove('damage-flash');
+            // Soft Reset
+            this.surge = 0;
+            this.vent = 0;
+        }, 2000);
+    },
+
+    win: function() {
+        this.running = false;
+        document.getElementById('p1-container').style.display = 'none';
+        document.getElementById('phase-display').innerText = "PHASE 2: MECHANICAL LOCK";
+        document.getElementById('phase-display').style.color = "var(--blue)";
+        log("VENTING COMPLETE. CASING OPEN.", "success");
+        P2.init();
+    }
+};
+
+/* ------------------------------------------------------------------
+   PUZZLE 2: RINGS (HARDER TIMING)
+   ------------------------------------------------------------------ */
+const P2 = {
+    container: document.getElementById('p2-container'),
+    canvas: document.getElementById('lockCanvas'),
+    ctx: document.getElementById('lockCanvas').getContext('2d'),
+    rings: [
+        {r: 60, a: 0, s: 0.04, locked: false},
+        {r: 100, a: 2, s: -0.06, locked: false}, 
+        {r: 140, a: 4, s: 0.09, locked: false} // Very fast outer ring
+    ],
+    active: 2,
+    running: false,
+
+    init: function() {
+        this.container.style.display = 'flex';
+        this.running = true;
+        
+        window.addEventListener('keydown', (e) => {
+            if(e.code === 'Space' && this.running) this.checkLock();
+        });
+        this.loop();
+    },
+
+    draw: function() {
+        const w = this.canvas.width; 
+        const h = this.canvas.height;
+        const c = this.ctx;
+        c.clearRect(0,0,w,h);
+        
+        // Target Line (Top)
+        c.strokeStyle = '#fff'; c.lineWidth = 2;
+        c.beginPath(); c.moveTo(w/2, 0); c.lineTo(w/2, h/2 - 20); c.stroke();
+
+        this.rings.forEach((r, i) => {
+            if(!r.locked) r.a += r.s;
+            
+            // Jitter effect for hardness
+            const jitter = (!r.locked && Math.random()>0.8) ? 0.05 : 0;
+            
+            c.beginPath();
+            // Arc with gap. Gap is at angle. Draw rest of circle.
+            // Gap size = 0.8 rads
+            c.arc(w/2, h/2, r.r, r.a + jitter, r.a + (Math.PI*2) - 0.8 + jitter);
+            
+            c.lineWidth = 18;
+            if(r.locked) {
+                c.strokeStyle = '#00ffff';
+                c.shadowBlur = 10; c.shadowColor = '#00ffff';
+            } else if(i === this.active) {
+                c.strokeStyle = '#ffb000';
+                c.shadowBlur = 10; c.shadowColor = '#ffb000';
+            } else {
+                c.strokeStyle = '#332200';
+                c.shadowBlur = 0;
+            }
+            c.stroke();
+        });
+    },
+
+    checkLock: function() {
+        if(this.active < 0) return;
+        const r = this.rings[this.active];
+        
+        // The Gap is at r.a (roughly).
+        // Target is 3PI/2 (Top) or in canvas terms, check normalized angle.
+        
+        // Math: The gap starts at r.a and ends at r.a - 0.8 (inverted)
+        // Actually simplified: We drew the line at Top. We need the "Gap" to be at Top.
+        // In standard canvas arc, 0 is Right, PI/2 is Bottom, PI is Left, 3PI/2 is Top.
+        // Our arc draws from A to A + 2PI - 0.8.
+        // So the "Gap" is between A + 2PI - 0.8 and A + 2PI.
+        // Center of Gap is A - 0.4 (roughly).
+        
+        // Let's just normalize A to 0-2PI
+        let angle = r.a % (Math.PI*2);
+        if(angle < 0) angle += Math.PI*2;
+        
+        // We want angle approx 4.71 (3PI/2) + 0.4 offset? 
+        // Let's simplify: Players align visually. 
+        // If the gap is visually at the top.
+        
+        // Hit window logic:
+        // The gap is "Open". 
+        // Just checking distance of 'angle' to specific value.
+        // After testing: Target roughly 4.9 to 5.0
+        
+        let target = 4.9;
+        if(Math.abs(angle - target) < 0.6) {
+            // Success
+            r.locked = true;
+            r.s = 0;
+            r.a = 4.9; // Snap visual
+            this.active--;
+            Sfx.play('lock');
+            if(this.active < 0) this.win();
+        } else {
+            // Fail
+            Sfx.play('alarm');
+            r.s *= 1.3; // Punishment: Speed up
+            log("MECHANICAL JAM DETECTED", "warn");
+        }
+    },
+
+    loop: function() {
+        if(!this.running) return;
+        this.draw();
+        requestAnimationFrame(() => this.loop());
+    },
+
+    win: function() {
+        this.running = false;
+        document.getElementById('victory-screen').style.display = 'flex';
+        log("KILLSWITCH ENGAGED.", "success");
+        log("ARDEN-007 OFFLINE.", "success");
+        document.getElementById('face').innerText = "\n   [ x _ x ]   \n";
+    }
+};
+
+/* ------------------------------------------------------------------
+   FACE ANIMATION
+   ------------------------------------------------------------------ */
+const Face = {
+    el: document.getElementById('face'),
+    update: function(stress) {
+        if(stress < 30) {
+            this.el.innerText = "   .---.\n  /  .  \\\n |  (o)  |\n  \\  -  /\n   '---'";
+            this.el.style.color = "var(--amber)";
+        } else if (stress < 70) {
+            this.el.innerText = "   .---.\n  /  o  \\\n |  (O)  |\n  \\  ~  /\n   '---'";
+            this.el.style.color = "#ff6600";
+        } else {
+            // Happy/Manic when winning (Surge High)
+            this.el.innerText = "   ^---^\n  /  >  \\\n |  (u)  |\n  \\  w  /\n   '---'";
+            this.el.style.color = "var(--blue)"; // Relief color
+        }
+    }
+};
+
+/* ------------------------------------------------------------------
+   HIDDEN GM CONTROLS
+   ------------------------------------------------------------------ */
+window.addEventListener('keydown', (e) => {
+    // 'H' for Help (Players do something cool)
+    if(e.key === 'h' || e.key === 'H') {
+        P1.surge -= 10;
+        log("GM: SURGE DAMPENED", "sys");
+    }
+    // 'P' for Punish (Players fail distraction)
+    if(e.key === 'p' || e.key === 'P') {
+        P1.surge += 20;
+        log("GM: EXTERNAL INTERFERENCE", "warn");
+    }
+    // 'R' for Reset
+    if(e.key === 'r' || e.key === 'R') {
+        location.reload();
+    }
+});
+
+// Start
+P1.init();
+
+</script>
+</body>
+</html>
