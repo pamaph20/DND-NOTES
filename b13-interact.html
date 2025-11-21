@@ -3,518 +3,795 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>B-13 CORE // FINAL</title>
+    <title>PROTOCOL B-13 // OMEGA</title>
     <style>
+        /* --- 1. CORE VARIABLES & FONTS --- */
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;800&family=Rajdhani:wght@500;700;900&display=swap');
+
         :root {
-            --bg: #020202;
-            --panel: #080a08;
-            --primary: #33ff77;
-            --dim: #153315;
-            --alert: #ff3333;
-            --warn: #ffaa00;
-            --medic: #00ccff;
-            --calm: #4488ff; /* The Victory Blue */
-            --grid: rgba(51, 255, 119, 0.05);
+            --c-void: #010103;
+            --c-core: #00f3ff;   
+            --c-dim: rgba(0, 243, 255, 0.1);
+            --c-success: #00ff9d;
+            --c-warn: #ffaa00;
+            --c-danger: #ff2a2a;
+            --c-medic: #0088ff;
+            --c-white: #e0e0e0;
+            
+            --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+            --scan-color: rgba(0, 243, 255, 0.05);
         }
 
-        * { box-sizing: border-box; user-select: none; }
+        * { box-sizing: border-box; user-select: none; cursor: crosshair; }
 
         body {
-            background: var(--bg);
-            color: var(--primary);
-            font-family: 'Segoe UI Mono', 'Courier New', monospace;
+            background-color: var(--c-void);
+            color: var(--c-core);
+            font-family: 'Rajdhani', sans-serif;
             margin: 0;
             height: 100vh;
             overflow: hidden;
-            transition: background-color 3s ease; /* Smooth fade for victory */
+            display: flex;
+            flex-direction: column;
+            transition: filter 0.1s;
         }
 
-        /* --- OVERLAYS --- */
-        .scanlines {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10;
-            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.2));
-            background-size: 100% 4px;
+        /* --- 2. CRT & ATMOSPHERE FX --- */
+        .crt-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 900;
+            background: radial-gradient(circle, rgba(0,0,0,0) 60%, rgba(0,0,0,0.6) 100%);
+            box-shadow: inset 0 0 150px rgba(0,0,0,0.9);
         }
         
-        .hazard-flash {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 20;
-            background: radial-gradient(circle, transparent 50%, rgba(255,0,0,0.8) 100%);
-            opacity: 0; transition: opacity 0.1s;
+        .scanlines {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 890;
+            background: linear-gradient(to bottom, rgba(0,0,0,0), rgba(0,0,0,0) 50%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.2));
+            background-size: 100% 4px;
         }
 
-        .crack-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 15;
-            opacity: 0; filter: drop-shadow(0 0 2px #000); transition: opacity 2s;
+        .scan-bar {
+            position: fixed; top: 0; left: 0; width: 100%; height: 10px; z-index: 895;
+            background: var(--c-dim); opacity: 0.3;
+            animation: scanMove 8s linear infinite; pointer-events: none;
         }
-        .crack-overlay path { fill: none; stroke: rgba(200,255,255,0.5); stroke-width: 2; stroke-linejoin: round; }
 
-        /* --- TRANSITION / MESSAGE OVERLAY --- */
+        .grid-floor {
+            position: absolute; width: 200%; height: 100%; bottom: -50%; left: -50%;
+            background: 
+                linear-gradient(rgba(0, 243, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 243, 255, 0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+            transform: perspective(600px) rotateX(60deg);
+            animation: gridMove 10s linear infinite;
+            z-index: 0; pointer-events: none;
+            mask-image: linear-gradient(to top, black 0%, transparent 80%);
+        }
+
+        /* --- 3. BOOT SEQUENCE --- */
+        #boot-layer {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 9999;
+            display: flex; flex-direction: column; justify-content: flex-end;
+            padding: 50px;
+            font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; color: var(--c-success);
+        }
+        .boot-line { margin-bottom: 2px; opacity: 0; animation: fadeIn 0.1s forwards; }
+
+        /* --- 4. UI LAYOUT --- */
+        .ui-container {
+            position: relative; z-index: 10; width: 100%; height: 100%;
+            display: flex; flex-direction: column; padding: 20px;
+            background: radial-gradient(circle at center, transparent 0%, #000 140%);
+        }
+
+        header {
+            display: flex; justify-content: space-between; align-items: flex-end;
+            border-bottom: 1px solid var(--c-dim); padding-bottom: 15px; margin-bottom: 20px;
+            background: linear-gradient(90deg, transparent, rgba(0,243,255,0.05), transparent);
+        }
+        .header-left h1 { margin: 0; font-family: 'JetBrains Mono'; font-size: 2.2rem; letter-spacing: -3px; text-shadow: 0 0 10px var(--c-core); line-height: 1; }
+        .header-left small { font-size: 0.7rem; letter-spacing: 4px; color: #556; display: block; margin-top: 5px; }
+        
+        .surge-meter {
+            font-family: 'JetBrains Mono'; font-size: 0.9rem; color: var(--c-danger);
+            border: 1px solid var(--c-danger); padding: 5px 15px; margin-right: 20px;
+            background: rgba(255, 42, 42, 0.05); display: inline-block; vertical-align: bottom;
+        }
+
+        .round-badge {
+            font-size: 1.8rem; font-weight: 900; padding: 5px 30px;
+            border: 2px solid var(--c-core); color: var(--c-core);
+            background: rgba(0,0,0,0.5); box-shadow: 0 0 15px var(--c-dim);
+            text-transform: uppercase; transition: 0.5s; clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+        }
+
+        /* --- 5. CONSOLE LOG (NEW) --- */
+        #console-log {
+            position: absolute; bottom: 20px; left: 20px; width: 300px; height: 200px;
+            font-family: 'JetBrains Mono', monospace; font-size: 0.7rem;
+            color: #667; overflow: hidden; pointer-events: none;
+            display: flex; flex-direction: column-reverse; /* Newest at bottom visually if we prepend, but we append */
+            mask-image: linear-gradient(to bottom, transparent, black 20%);
+            z-index: 800;
+        }
+        .log-entry { margin-bottom: 4px; text-shadow: 0 0 2px currentColor; }
+        .log-entry span { opacity: 0.5; margin-right: 5px; }
+        .log-entry.sys { color: var(--c-white); }
+        .log-entry.warn { color: var(--c-warn); }
+        .log-entry.crit { color: var(--c-danger); }
+        .log-entry.ok { color: var(--c-success); }
+
+        /* --- 6. THE MAP --- */
+        .viewport {
+            flex-grow: 1; position: relative;
+            display: flex; justify-content: center; align-items: center;
+            border: 1px solid var(--c-dim);
+            box-shadow: inset 0 0 100px rgba(0,0,0,0.9);
+            overflow: hidden;
+        }
+
+        .hub-svg { width: 100%; height: 100%; max-width: 1000px; overflow: visible; }
+        
+        /* Connectors */
+        .connector-bg { stroke: #112; stroke-width: 10; fill: none; stroke-linecap: square; opacity: 0.2; }
+        
+        .beam-line {
+            stroke: var(--c-success); stroke-width: 4; fill: none; stroke-linecap: round;
+            stroke-dasharray: 1000; stroke-dashoffset: 1000;
+            filter: drop-shadow(0 0 8px var(--c-success)); opacity: 0.9;
+        }
+        .beam-active { animation: drawBeam 1.5s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+
+        /* Trinity Flash */
+        .trinity-flash { fill: #fff; opacity: 0; pointer-events: none; }
+        .trinity-active { animation: flashBang 3s forwards; }
+
+        /* Nodes */
+        .node-group { cursor: pointer; transition: 0.3s var(--ease-out); }
+        .node-group:hover { transform: scale(1.1); }
+        .node-bg { fill: rgba(0,0,0,0.9); stroke: var(--c-core); stroke-width: 2; transition: 0.3s; }
+        .node-icon { fill: var(--c-core); font-size: 30px; text-anchor: middle; dominant-baseline: middle; transition: 0.3s; }
+        .node-label { fill: var(--c-core); font-size: 12px; font-family: 'JetBrains Mono'; text-anchor: middle; opacity: 0.8; letter-spacing: 2px; }
+
+        .node-group:hover .node-bg { fill: var(--c-dim); box-shadow: 0 0 30px var(--c-core); }
+        .node-group:hover .node-icon { fill: #fff; }
+
+        .node-group.completed .node-bg { stroke: var(--c-success); fill: rgba(0, 255, 157, 0.1); box-shadow: 0 0 20px var(--c-success); }
+        .node-group.completed .node-icon { fill: var(--c-success); }
+        .node-group.completed .node-label { fill: var(--c-success); }
+
+        /* --- 7. MODAL WINDOW --- */
+        .modal-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);
+            z-index: 100;
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0; pointer-events: none; transition: 0.3s;
+        }
+        .modal-layer.active { opacity: 1; pointer-events: all; }
+
+        .terminal-window {
+            width: 1100px; height: 650px;
+            background: #050709;
+            border: 1px solid var(--c-core);
+            box-shadow: 0 0 100px rgba(0,0,0,1);
+            display: grid; grid-template-columns: 55% 45%;
+            transform: scale(0.95) translateY(20px); transition: 0.4s var(--ease-out);
+            position: relative; overflow: hidden;
+        }
+        .modal-layer.active .terminal-window { transform: scale(1) translateY(0); }
+
+        /* Scanline inside modal */
+        .terminal-window::after {
+            content: " "; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%);
+            background-size: 100% 4px; pointer-events: none;
+        }
+
+        .viz-container {
+            border-right: 1px solid var(--c-core);
+            background-image: 
+                linear-gradient(var(--c-dim) 1px, transparent 1px),
+                linear-gradient(90deg, var(--c-dim) 1px, transparent 1px);
+            background-size: 40px 40px;
+            display: flex; justify-content: center; align-items: center;
+            position: relative;
+        }
+        
+        .data-container {
+            padding: 40px; display: flex; flex-direction: column;
+            background: linear-gradient(135deg, rgba(0,0,0,0) 60%, rgba(0,243,255,0.02) 100%);
+        }
+
+        .terminal-header { border-bottom: 2px solid var(--c-core); padding-bottom: 10px; margin-bottom: 20px; }
+        .terminal-header h2 { margin: 0; font-size: 3rem; color: #fff; letter-spacing: 8px; line-height: 1; }
+        
+        .log-block {
+            background: rgba(0,0,0,0.4); border-left: 4px solid #333;
+            padding: 15px; margin-bottom: 15px;
+            font-family: 'JetBrains Mono'; font-size: 0.9rem;
+        }
+        .log-label { font-size: 0.7rem; text-transform: uppercase; color: #666; display: block; margin-bottom: 8px; letter-spacing: 1px; }
+        .log-content { color: #e0e0e0; line-height: 1.5; min-height: 45px; }
+
+        .control-grid { margin-top: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; z-index: 2; }
+        
+        .btn-action {
+            background: transparent; border: 1px solid; padding: 20px;
+            font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 1.4rem;
+            text-transform: uppercase; cursor: pointer; transition: 0.2s;
+            position: relative; overflow: hidden; letter-spacing: 2px;
+        }
+        .btn-action::before {
+            content:''; position: absolute; top:0; left:-100%; width:100%; height:100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: 0.4s;
+        }
+        .btn-action:hover::before { left: 100%; }
+
+        .btn-stab { border-color: var(--c-success); color: var(--c-success); box-shadow: inset 0 0 20px rgba(0,255,157,0.1); }
+        .btn-stab:hover { background: var(--c-success); color: #000; box-shadow: 0 0 40px var(--c-success); }
+        
+        .btn-surge { border-color: var(--c-danger); color: var(--c-danger); box-shadow: inset 0 0 20px rgba(255,42,42,0.1); }
+        .btn-surge:hover { background: var(--c-danger); color: #000; box-shadow: 0 0 40px var(--c-danger); }
+
+        .close-modal {
+            position: absolute; top: 20px; right: 20px; background: none; border: 1px solid #444; color: #444;
+            width: 40px; height: 40px; font-size: 2rem; line-height: 40px; cursor: pointer; z-index: 20; transition: 0.2s;
+        }
+        .close-modal:hover { border-color: #fff; color: #fff; }
+
+        /* --- 8. OVERLAYS & FX --- */
         #system-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 50;
-            background: rgba(0,0,0,0.9);
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 200;
+            background: rgba(0,0,0,0.95);
             display: flex; flex-direction: column; justify-content: center; align-items: center;
             opacity: 0; pointer-events: none; transition: opacity 0.5s;
         }
-        #sys-msg-main { font-size: 2rem; color: var(--primary); text-shadow: 0 0 10px var(--primary); margin-bottom: 20px; text-align: center; }
-        #sys-msg-sub { font-size: 1rem; color: #888; font-family: sans-serif; max-width: 600px; line-height: 1.5; text-align: center; }
+        #sys-title { font-size: 4rem; letter-spacing: 15px; color: #fff; margin-bottom: 20px; text-align: center; text-shadow: 0 0 30px var(--c-core); }
+        #sys-body { font-family: 'JetBrains Mono'; color: var(--c-core); font-size: 1.2rem; text-align: center; max-width: 700px; line-height: 1.6; }
 
-        /* --- UI LAYOUT --- */
-        .screen {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            display: flex; flex-direction: column;
-            transition: opacity 0.3s, transform 0.3s;
-        }
-        .hidden { opacity: 0; pointer-events: none; transform: scale(0.95); }
-        .active { opacity: 1; pointer-events: all; transform: scale(1); }
+        #particle-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 150; }
+        #fracture-layer { position: fixed; width: 100%; height: 100%; pointer-events: none; z-index: 160; display: none; }
+        .shard { position: absolute; background: #000; border: 1px solid var(--c-danger); }
 
-        header {
-            height: 60px; border-bottom: 2px solid var(--dim);
-            display: flex; justify-content: space-between; align-items: center; padding: 0 20px;
-            background: #050505; z-index: 5; transition: background 3s;
+        /* Glitch Classes */
+        .glitch-mode { animation: chromatic 0.1s infinite; filter: contrast(1.5) brightness(1.2) grayscale(100%); }
+        @keyframes chromatic {
+            0% { text-shadow: 4px 0 var(--c-danger), -4px 0 blue; transform: translate(3px, 0); }
+            50% { text-shadow: -4px 0 var(--c-danger), 4px 0 blue; transform: translate(-3px, 0); }
+            100% { text-shadow: 4px 0 var(--c-danger), -4px 0 blue; transform: translate(0, 3px); }
         }
 
-        /* --- HUB SCREEN --- */
-        #hub-screen { background: radial-gradient(circle at center, #111 0%, #000 90%); transition: background 3s; }
-        .map-container { flex-grow: 1; display: flex; justify-content: center; align-items: center; position: relative; }
-        
-        .conduit { stroke: #112211; stroke-width: 10; fill: none; transition: 0.5s; }
-        .station-btn { cursor: pointer; transition: 0.3s; }
-        .station-circle { fill: #050505; stroke: var(--dim); stroke-width: 4; transition: fill 3s, stroke 3s; }
-        .station-icon { fill: var(--dim); font-size: 30px; text-anchor: middle; dominant-baseline: middle; transition: fill 3s; }
-        .station-label { fill: var(--dim); font-size: 14px; text-anchor: middle; font-weight: bold; transition: fill 3s; }
-        
-        .station-btn:hover .station-circle { stroke: #fff; fill: #111; }
-        .station-btn:hover .station-icon { fill: #fff; }
-        
-        .done .station-circle { stroke: var(--primary); fill: #002200; box-shadow: 0 0 20px var(--primary); }
-        .done .station-icon { fill: var(--primary); }
-        .done .station-label { fill: var(--primary); }
-
-        /* --- DETAIL SCREEN --- */
-        #detail-screen { background: #080808; padding: 20px; display: grid; grid-template-rows: 60px 1fr 90px; }
-        .detail-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; color: #888; }
-        .detail-body { display: grid; grid-template-columns: 1fr 300px; gap: 20px; padding: 20px 0; }
-
-        .visualizer {
-            border: 1px solid var(--primary); background: #000;
-            box-shadow: inset 0 0 30px rgba(0,255,100,0.05);
-            display: flex; justify-content: center; align-items: center; position: relative; overflow: hidden;
-            background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-            background-size: 40px 40px;
+        /* Animations */
+        @keyframes gridMove { from { background-position: 0 0; } to { background-position: 0 60px; } }
+        @keyframes scanMove { 0% { top: -10%; } 100% { top: 110%; } }
+        @keyframes drawBeam { to { stroke-dashoffset: 0; } }
+        @keyframes fadeIn { to { opacity: 1; } }
+        @keyframes flashBang {
+            0% { opacity: 0; } 10% { opacity: 1; fill: #fff; } 100% { opacity: 0.3; fill: var(--c-medic); }
         }
 
-        .data-panel { border-left: 1px solid var(--dim); padding-left: 20px; display: flex; flex-direction: column; gap: 15px; }
-        .data-block { margin-bottom: 10px; }
-        .data-label { font-size: 0.7rem; color: #555; text-transform: uppercase; display: block; margin-bottom: 5px; border-bottom: 1px dashed #222; }
-        .data-text { font-size: 0.9rem; line-height: 1.4; color: #ccc; }
-
-        .controls { display: flex; gap: 10px; border-top: 1px solid #222; padding-top: 10px; }
-        button { flex: 1; border: none; padding: 15px; cursor: pointer; font-family: inherit; font-weight: bold; text-transform: uppercase; font-size: 1rem; transition: 0.2s; }
-        
-        .btn-success { background: #003300; color: var(--primary); border: 1px solid var(--dim); }
-        .btn-success:hover { background: var(--primary); color: #000; box-shadow: 0 0 15px var(--primary); }
-
-        .btn-fail { background: #330000; color: var(--alert); border: 1px solid #440000; }
-        .btn-fail:hover { background: var(--alert); color: #000; box-shadow: 0 0 15px var(--alert); }
-        
-        .btn-back { background: transparent; color: #666; border: 1px solid #333; max-width: 100px; }
-        .btn-back:hover { border-color: #fff; color: #fff; }
-
-        /* --- ANIMATIONS --- */
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        @keyframes spinRev { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
-        @keyframes pulseG { from { stroke-width: 2; opacity: 0.8; } to { stroke-width: 4; opacity: 1; } }
-        @keyframes vibe { 0% { transform: translate(1px, 1px); } 100% { transform: translate(-1px, -1px); } }
-        
-        /* The Jitter Animation for Delta Needle - defined globally */
-        @keyframes jitterAnim { 
-            0% { transform: rotate(-45deg); } 
-            10% { transform: rotate(-30deg); }
-            20% { transform: rotate(60deg); } 
-            40% { transform: rotate(40deg); } 
-            60% { transform: rotate(80deg); } 
-            80% { transform: rotate(20deg); } 
-            100% { transform: rotate(90deg); } 
+        /* Massive Failure */
+        body.critical-failure { background-color: #1a0000; }
+        body.critical-failure #system-overlay { background: rgba(20,0,0,0.98); opacity: 1; pointer-events: all; }
+        body.critical-failure #sys-title { color: var(--c-danger); animation: glitchText 0.2s infinite; }
+        @keyframes glitchText { 
+            0% { opacity: 1; transform: skewX(0deg); } 20% { opacity: 0.8; transform: skewX(-20deg); } 40% { opacity: 1; transform: skewX(20deg); } 
         }
 
-        .shaking { animation: shake 0.2s; }
-        @keyframes shake { 0% { transform: translate(0,0); } 25% { transform: translate(5px, -5px); } 75% { transform: translate(-5px, 5px); } }
-
-        /* VICTORY CLASSES */
-        body.victory-mode { background-color: #05101a; }
-        body.victory-mode .station-circle { stroke: var(--calm) !important; fill: #000510 !important; box-shadow: 0 0 50px var(--calm) !important; }
-        body.victory-mode .station-icon { fill: var(--calm) !important; }
-        body.victory-mode .station-label { fill: var(--calm) !important; }
-        body.victory-mode .conduit { stroke: var(--calm) !important; stroke-width: 4; opacity: 0.5; }
-        body.victory-mode #round-indicator { color: var(--calm) !important; text-shadow: 0 0 20px var(--calm); }
-        body.victory-mode header { background: #020810; border-color: var(--calm); }
+        /* Victory */
+        body.victory { background: #00101a; }
+        body.victory .round-badge { color: #fff; border-color: #fff; box-shadow: 0 0 50px #fff; background: #fff; color: #000; }
 
     </style>
 </head>
 <body>
 
+    <!-- FX LAYERS -->
+    <div class="crt-overlay"></div>
     <div class="scanlines"></div>
-    <div class="hazard-flash" id="fx-flash"></div>
-    <svg class="crack-overlay" id="fx-crack" viewBox="0 0 100 100" preserveAspectRatio="none">
-        <path id="c1" d="M0 0 L20 30 L10 40" visibility="hidden" />
-        <path id="c2" d="M100 0 L70 20 L80 50" visibility="hidden" />
-        <path id="c3" d="M50 100 L40 70 L60 60" visibility="hidden" />
-        <path id="c4" d="M0 50 L30 50 L40 20" visibility="hidden" />
-    </svg>
+    <div class="scan-bar"></div>
+    <div class="grid-floor"></div>
+    <canvas id="particle-canvas"></canvas>
+    <div id="fracture-layer"></div>
 
-    <!-- OVERLAY FOR MESSAGES -->
+    <!-- SYSTEM MESSAGE OVERLAY -->
     <div id="system-overlay">
-        <div id="sys-msg-main"></div>
-        <div id="sys-msg-sub"></div>
+        <div id="sys-title">SYSTEM MESSAGE</div>
+        <div id="sys-body">STANDBY...</div>
     </div>
 
-    <!-- SCREEN 1: MAIN HUB -->
-    <div id="hub-screen" class="screen active">
+    <!-- BOOT SCREEN -->
+    <div id="boot-layer">
+        <div id="boot-content"></div>
+    </div>
+
+    <!-- MAIN UI -->
+    <div class="ui-container" id="main-ui" style="opacity: 0;">
         <header>
-            <div id="round-indicator" style="font-size: 1.2rem; color: #fff; text-shadow: 0 0 5px var(--primary);">ROUND 1: INITIAL SYNC</div>
-            <div style="color: var(--dim);">B-13 DISTRIBUTION MAP</div>
+            <div class="header-left">
+                <h1>PROTOCOL B-13</h1>
+                <small>ENGINEERING DECK // TERMINAL 7</small>
+            </div>
+            <div class="header-center" style="flex-grow:1; text-align:center;">
+                <span class="surge-meter" id="surge-display">SURGES: 0/4</span>
+            </div>
+            <div class="header-right">
+                <div class="round-badge" id="badge-round">ROUND 1</div>
+            </div>
         </header>
 
-        <div class="map-container">
-            <svg width="600" height="500" viewBox="0 0 600 500">
-                <line x1="300" y1="100" x2="100" y2="400" class="conduit" id="line-ad" />
-                <line x1="300" y1="100" x2="500" y2="400" class="conduit" id="line-az" />
-                <line x1="100" y1="400" x2="500" y2="400" class="conduit" id="line-dz" />
+        <div class="viewport">
+            <svg class="hub-svg" viewBox="0 0 800 500">
+                <!-- Trinity Flash -->
+                <polygon points="400,100 150,400 650,400" class="trinity-flash" id="trinity-glow" />
 
-                <g class="station-btn" id="node-alpha" onclick="openStation('alpha')">
-                    <circle cx="300" cy="100" r="60" class="station-circle" />
-                    <text x="300" y="105" class="station-icon">⚙</text>
-                    <text x="300" y="180" class="station-label">ALPHA</text>
+                <!-- Connector Backgrounds -->
+                <line x1="400" y1="100" x2="150" y2="400" class="connector-bg" />
+                <line x1="150" y1="400" x2="650" y2="400" class="connector-bg" />
+                <line x1="650" y1="400" x2="400" y2="100" class="connector-bg" />
+
+                <!-- PROGRESSIVE BEAMS -->
+                <path d="M400 100 L150 400" class="beam-line" id="beam-1" />
+                <path d="M150 400 L650 400" class="beam-line" id="beam-2" />
+                <path d="M650 400 L400 100" class="beam-line" id="beam-3" />
+
+                <!-- Nodes -->
+                <g class="node-group" id="node-alpha" onclick="Game.openStation('alpha')">
+                    <circle cx="400" cy="100" r="60" class="node-bg" />
+                    <text x="400" y="105" class="node-icon">⚙</text>
+                    <text x="400" y="180" class="node-label">ALPHA</text>
                 </g>
 
-                <g class="station-btn" id="node-delta" onclick="openStation('delta')">
-                    <circle cx="100" cy="400" r="60" class="station-circle" />
-                    <text x="100" y="405" class="station-icon">💧</text>
-                    <text x="100" y="480" class="station-label">DELTA</text>
+                <g class="node-group" id="node-delta" onclick="Game.openStation('delta')">
+                    <circle cx="150" cy="400" r="60" class="node-bg" />
+                    <text x="150" y="405" class="node-icon">💧</text>
+                    <text x="150" y="480" class="node-label">DELTA</text>
                 </g>
 
-                <g class="station-btn" id="node-zeta" onclick="openStation('zeta')">
-                    <circle cx="500" cy="400" r="60" class="station-circle" />
-                    <text x="500" y="405" class="station-icon">⚡</text>
-                    <text x="500" y="480" class="station-label">ZETA</text>
+                <g class="node-group" id="node-zeta" onclick="Game.openStation('zeta')">
+                    <circle cx="650" cy="400" r="60" class="node-bg" />
+                    <text x="650" y="405" class="node-icon">⚡</text>
+                    <text x="650" y="480" class="node-label">ZETA</text>
                 </g>
             </svg>
         </div>
-        
-        <div style="padding: 20px; border-top: 1px solid #222; display: flex; justify-content: center;">
-            <button onclick="medicReset()" style="max-width: 300px; border-color: var(--medic); color: var(--medic); background: rgba(0,200,255,0.05);">MEDIC: STABILIZE CREW</button>
+
+        <!-- Console Log -->
+        <div id="console-log">
+            <div class="log-entry sys"><span>></span> SYSTEM READY</div>
+        </div>
+
+        <div style="margin-top: 20px; text-align: center;">
+            <button onclick="Game.medic()" style="background: transparent; border: 1px solid var(--c-medic); color: var(--c-medic); padding: 12px 50px; font-family: inherit; text-transform: uppercase; font-weight: 900; cursor: pointer; letter-spacing: 2px;">MEDIC ASSIST</button>
         </div>
     </div>
 
-    <!-- SCREEN 2: DETAIL VIEW -->
-    <div id="detail-screen" class="screen hidden">
-        <div class="detail-header">
-            <div id="detail-title" style="font-size: 1.5rem; color: var(--primary);">STATION ALPHA</div>
-            <button class="btn-back" onclick="closeStation()">BACK</button>
-        </div>
+    <!-- MODAL -->
+    <div class="modal-layer" id="modal">
+        <div class="terminal-window">
+            <button class="close-modal" onclick="Game.closeModal()">×</button>
+            
+            <div class="viz-container" id="viz-target"></div>
 
-        <div class="detail-body">
-            <div class="visualizer" id="viz-container">
-                <div id="viz-content" style="width:100%; height:100%; display:flex; justify-content:center; align-items:center;"></div>
+            <div class="data-container">
+                <div class="terminal-header">
+                    <h2 id="term-title">ALPHA</h2>
+                </div>
+
+                <div class="log-block">
+                    <span class="log-label">DIAGNOSTIC DATA</span>
+                    <div class="log-content" id="log-desc">Reading...</div>
+                </div>
+
+                <div class="log-block" style="border-color: var(--c-warn);">
+                    <span class="log-label" style="color:var(--c-warn)">STABILIZATION PROTOCOL</span>
+                    <div class="log-content" id="log-hint">Decrypting...</div>
+                </div>
+
+                <div class="log-block" style="border-color: var(--c-danger);">
+                    <span class="log-label" style="color:var(--c-danger)">SURGE RISK</span>
+                    <div class="log-content" id="log-fail">Calculating...</div>
+                </div>
+
+                <div class="control-grid">
+                    <button class="btn-action btn-stab" onclick="Game.resolve(true)">STABILIZE</button>
+                    <button class="btn-action btn-surge" onclick="Game.resolve(false)">FAIL / SURGE</button>
+                </div>
             </div>
-
-            <div class="data-panel">
-                <div class="data-block">
-                    <span class="data-label">DIAGNOSTIC READOUT</span>
-                    <div id="txt-desc" class="data-text">Loading...</div>
-                </div>
-                <div class="data-block">
-                    <span class="data-label">STABILIZATION HINT</span>
-                    <div id="txt-hint" class="data-text" style="color: var(--warn);">Loading...</div>
-                </div>
-                <div class="data-block">
-                    <span class="data-label">FAILURE CONSEQUENCE</span>
-                    <div id="txt-fail" class="data-text" style="color: var(--alert);">Loading...</div>
-                </div>
-                <div id="status-msg" style="margin-top:auto; font-size: 1.2rem; text-align:center;"></div>
-            </div>
-        </div>
-
-        <div class="controls">
-            <button class="btn-success" onclick="resolveStation(true)">STABILIZE (SUCCESS)</button>
-            <button class="btn-fail" onclick="resolveStation(false)">SURGE (FAILURE)</button>
         </div>
     </div>
 
-    <script>
-        // --- VISUAL GENERATORS ---
-
-        function getAlphaViz(round, status) {
-            let color = '#ffaa00'; 
-            let speed = '4s';
-            let effectClass = '';
-
-            if (round === 1) { color = '#ffff00'; speed = '6s'; }
-            if (round === 3) { color = '#ff3333'; speed = '1s'; }
-
-            if (status === 'success') {
-                color = '#33ff77'; speed = '2s'; effectClass = 'pulse-green';
-            } else if (status === 'fail') {
-                color = '#ff0000'; speed = '0.2s'; effectClass = 'vibrate';
-            }
-
-            return `
-            <svg width="240" height="240" viewBox="0 0 200 200" class="${effectClass}">
-                <defs><filter id="glow-a"><feGaussianBlur stdDeviation="2" result="coloredBlur"/><feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
-                <g style="transform-origin: 100px 100px; animation: spin ${speed} linear infinite;">
-                    <circle cx="100" cy="100" r="90" fill="none" stroke="${color}" stroke-width="2" stroke-dasharray="10, 5" />
-                    <circle cx="100" cy="100" r="85" fill="none" stroke="${color}" stroke-width="1" />
-                </g>
-                <g style="transform-origin: 100px 100px; animation: spinRev ${speed} linear infinite;">
-                    <path d="M100,40 L100,160 M40,100 L160,100" stroke="${color}" stroke-width="8" stroke-linecap="round" />
-                    <circle cx="100" cy="100" r="60" fill="#000" stroke="${color}" stroke-width="4" />
-                    <circle cx="100" cy="100" r="50" fill="none" stroke="${color}" stroke-width="5" stroke-dasharray="8,4" />
-                </g>
-            </svg>`;
+<script>
+/* --- AUDIO SYSTEM (SYNTH) --- */
+const AudioSys = {
+    ctx: null,
+    init: function() {
+        if(!this.ctx) {
+            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
         }
+        if(this.ctx.state === 'suspended') this.ctx.resume();
+    },
+    playTone: function(freq, type, duration, vol = 0.1) {
+        if(!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + duration);
+    },
+    hover: function() { this.playTone(800, 'sine', 0.05, 0.05); },
+    click: function() { this.playTone(1200, 'square', 0.1, 0.1); },
+    success: function() { 
+        this.playTone(400, 'sine', 0.2); 
+        setTimeout(()=>this.playTone(600, 'sine', 0.2), 100);
+        setTimeout(()=>this.playTone(800, 'sine', 0.4), 200);
+    },
+    fail: function() {
+        this.playTone(150, 'sawtooth', 0.5, 0.2);
+        this.playTone(100, 'sawtooth', 0.5, 0.2);
+    },
+    alarm: function() {
+        this.playTone(800, 'square', 0.1, 0.2);
+        setTimeout(()=>this.playTone(600, 'square', 0.1, 0.2), 100);
+    }
+};
 
-        function getDeltaViz(round, status) {
-            let color = '#00ccff';
-            let needleColor = '#ffaa00';
-            // FIX: Animation name and duration properly set in style
-            let animStyle = `animation: jitterAnim 2s ease-in-out infinite alternate;`; 
-
-            if (round === 3) { 
-                needleColor = '#ff3333'; 
-                animStyle = `animation: jitterAnim 0.2s linear infinite alternate;`; // Faster jitter 
-            }
-
-            if (status === 'success') {
-                color = '#33ff77'; needleColor = '#33ff77';
-                animStyle = `transition: transform 1s; transform: rotate(0deg);`; // Lock to center
-            } else if (status === 'fail') {
-                color = '#ff0000'; needleColor = '#ffffff';
-                animStyle = `animation: jitterAnim 0.05s linear infinite;`;
-            }
-
-            return `
-            <svg width="240" height="240" viewBox="0 0 200 200">
-                <defs><filter id="glow-d"><feGaussianBlur stdDeviation="2" result="coloredBlur"/><feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
-                <path d="M30,100 A70,70 0 0,1 170,100" fill="none" stroke="${color}" stroke-width="2" stroke-dasharray="2,2" filter="url(#glow-d)" />
-                <line x1="100" y1="20" x2="100" y2="35" stroke="${color}" stroke-width="2" />
-                <g style="transform-origin: 100px 100px; ${animStyle}">
-                    <polygon points="95,100 100,25 105,100" fill="${needleColor}" filter="url(#glow-d)" />
-                    <circle cx="100" cy="100" r="10" fill="${needleColor}" />
-                </g>
-                <text x="100" y="140" fill="${color}" font-size="14" text-anchor="middle" font-family="monospace">${status === 'success' ? 'STABLE' : 'PSI LEVEL'}</text>
-            </svg>`;
+/* --- PARTICLE SYSTEM --- */
+const Particles = {
+    ctx: null, canvas: null, particles: [],
+    init: function() {
+        this.canvas = document.getElementById('particle-canvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.resize();
+        window.addEventListener('resize', ()=>this.resize());
+        this.loop();
+    },
+    resize: function() {
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+    },
+    spawn: function(x, y, color, count, speed) {
+        for(let i=0; i<count; i++) {
+            this.particles.push({
+                x: x, y: y,
+                vx: (Math.random() - 0.5) * speed,
+                vy: (Math.random() - 0.5) * speed,
+                life: 1.0,
+                color: color
+            });
         }
-
-        function getZetaViz(round, status) {
-            let color = '#33ff77';
-            let speed = round === 1 ? '2s' : (round === 2 ? '0.5s' : '0.1s');
-            let path = "M0 100 Q 50 50 100 100 T 200 100"; 
-
-            if (status === 'success') {
-                color = '#33ff77'; speed = '4s'; path = "M0 100 L 200 100";
-            } else if (status === 'fail') {
-                color = '#ff0000'; speed = '0.05s'; path = "M0 100 L 10 20 L 20 180 L 30 50 L 40 150 L 200 100";
-            } else if (round > 1) {
-                color = round === 2 ? '#ffaa00' : '#ffffff';
-                path = "M0 100 L 25 50 L 50 100 L 75 150 L 100 100 L 200 100";
-            }
-
-            return `
-            <svg width="240" height="240" viewBox="0 0 200 200">
-                <defs><filter id="glow-z"><feGaussianBlur stdDeviation="3" result="coloredBlur"/><feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
-                <line x1="0" y1="100" x2="200" y2="100" stroke="${color}" stroke-width="1" opacity="0.3" />
-                <path d="${path}" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow-z)">
-                    <animate attributeName="stroke-dashoffset" from="0" to="200" dur="${speed}" repeatCount="indefinite" />
-                    ${status === 'success' ? '<animate attributeName="d" values="M0 100 Q 50 90 100 100 T 200 100; M0 100 Q 50 110 100 100 T 200 100; M0 100 Q 50 90 100 100 T 200 100" dur="2s" repeatCount="indefinite" />' : ''}
-                </path>
-            </svg>`;
+    },
+    loop: function() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        for(let i=this.particles.length-1; i>=0; i--) {
+            let p = this.particles[i];
+            p.x += p.vx; p.y += p.vy;
+            p.life -= 0.02;
+            this.ctx.globalAlpha = p.life;
+            this.ctx.fillStyle = p.color;
+            this.ctx.fillRect(p.x, p.y, 3, 3);
+            if(p.life <= 0) this.particles.splice(i, 1);
         }
+        requestAnimationFrame(()=>this.loop());
+    }
+};
 
-        // --- SCENARIO DATA ---
-        const rounds = {
-            1: {
-                name: "ROUND 1: INITIAL SYNC",
-                alpha: { desc: "Gears grinding in inconsistent rhythm.", hint: "Rotate gears in sequence.", fail: "SPARKS! Nearby stations take Damage." },
-                delta: { desc: "Valves sweating. Mist leaking.", hint: "Tighten coupling. Turn slowly.", fail: "SPRAY! Make AGI Save or Slip." },
-                zeta: { desc: "Voltage spiking wildly.", hint: "Insulate misaligned wires.", fail: "SHOCK! Hands suffer tremors." }
-            },
-            2: {
-                name: "ROUND 2: COORDINATION",
-                alpha: { desc: "Relay shuddering violently.", hint: "Micro-increments. Sync rotation.", fail: "FEEDBACK! Delta & Zeta AGI Save." },
-                delta: { desc: "Pipes rumbling. Cracking sound.", hint: "Adjust two valves at once.", fail: "BLOWOUT! All suffer AGI Penalty." },
-                zeta: { desc: "Board warm. Circuits flickering.", hint: "Re-route at click.", fail: "SURGE! Random player Shock effect." }
-            },
-            3: {
-                name: "ROUND 3: FINAL SYNC",
-                alpha: { desc: "Gears glowing orange. Snapping imminent.", hint: "Fine-tune tension. Light taps.", fail: "BACKLASH! Take Damage. Delta difficulty increases." },
-                delta: { desc: "Steam venting. Roaring like a geyser.", hint: "Apply Counter-pressure.", fail: "SCALD! Zeta difficulty increases." },
-                zeta: { desc: "High pitch whine. Circuits white-hot.", hint: "Ground connection first.", fail: "OVERLOAD! All make CON Save." }
-            }
-        };
+/* --- GAME CONFIG --- */
+const DB = {
+    1: {
+        color: '#00f3ff',
+        name: "ROUND 1 // INITIALIZATION",
+        alpha: { desc: "Gears grinding. Rotational variance detected.", hint: "Rotate gears in sequence. Listen to the rhythm.", fail: "SPARKS! Nearby stations take Damage." },
+        delta: { desc: "Valves sweating. Coolant pressure low.", hint: "Tighten coupling. Turn valves slowly.", fail: "SPRAY! AGI Save or Slip. Floor slippery." },
+        zeta: { desc: "Voltage spiking. Arc flash imminent.", hint: "Insulate misaligned wires.", fail: "SHOCK! Hands suffer tremors." }
+    },
+    2: {
+        color: '#ffaa00',
+        name: "ROUND 2 // ESCALATION",
+        alpha: { desc: "Relay shuddering. Harmonic resonance critical.", hint: "Micro-increments. Sync rotation with pulse.", fail: "FEEDBACK! Delta & Zeta AGI Save." },
+        delta: { desc: "Pipes rumbling. Integrity failing.", hint: "Adjust two valves simultaneously.", fail: "BLOWOUT! Coolant splash. All players -1 AGI." },
+        zeta: { desc: "Board overheating. Circuits orange.", hint: "Re-route only at audible click.", fail: "SURGE! Random player Shock effect." }
+    },
+    3: {
+        color: '#ff2a2a',
+        name: "ROUND 3 // CRITICAL MASS",
+        alpha: { desc: "Gears glowing white-hot. Structural failure.", hint: "Fine-tune tension. Light taps only.", fail: "BACKLASH! Take Damage. Delta DC +1." },
+        delta: { desc: "Roaring like a geyser. Burst imminent.", hint: "Apply Counter-pressure immediately.", fail: "SCALD! Take Damage. Zeta DC +1." },
+        zeta: { desc: "High pitch whine. Capacitor melting.", hint: "Ground connection first. Precise timing.", fail: "OVERLOAD! All make CON Save." }
+    }
+};
 
-        let currentRound = 1;
-        let stationStatus = { alpha: false, delta: false, zeta: false };
-        let currentStationId = null;
-        let crackCount = 0;
+/* --- GAME ENGINE --- */
+const Game = {
+    round: 1,
+    surges: 0,
+    maxSurges: 4,
+    status: { alpha: false, delta: false, zeta: false },
+    currentId: null,
 
-        function openStation(id) {
-            if(stationStatus[id]) return;
-            currentStationId = id;
-            renderStation('neutral');
-            
-            document.getElementById('hub-screen').classList.remove('active');
-            document.getElementById('hub-screen').classList.add('hidden');
-            document.getElementById('detail-screen').classList.remove('hidden');
-            document.getElementById('detail-screen').classList.add('active');
-        }
+    init: function() {
+        Particles.init();
+        // Capture first click for Audio
+        window.addEventListener('click', () => AudioSys.init(), { once: true });
+        this.boot();
+    },
 
-        function renderStation(state) {
-            const data = rounds[currentRound][currentStationId];
-            let vizHTML = "";
-            if(currentStationId === 'alpha') vizHTML = getAlphaViz(currentRound, state);
-            if(currentStationId === 'delta') vizHTML = getDeltaViz(currentRound, state);
-            if(currentStationId === 'zeta')  vizHTML = getZetaViz(currentRound, state);
+    log: function(type, msg) {
+        const div = document.getElementById('console-log');
+        const entry = document.createElement('div');
+        entry.className = `log-entry ${type}`;
+        entry.innerHTML = `<span>></span> ${msg}`;
+        div.appendChild(entry);
+        div.scrollTop = div.scrollHeight;
+    },
 
-            document.getElementById('detail-title').innerText = `STATION ${currentStationId.toUpperCase()}`;
-            document.getElementById('txt-desc').innerText = data.desc;
-            document.getElementById('txt-hint').innerText = data.hint;
-            document.getElementById('txt-fail').innerText = data.fail;
-            document.getElementById('viz-content').innerHTML = vizHTML;
-            document.getElementById('status-msg').innerText = state === 'neutral' ? "" : (state === 'success' ? "CALIBRATING... SUCCESS" : "CRITICAL ERROR DETECTED");
-            
-            const controls = document.querySelector('.controls');
-            if(state === 'success') controls.style.display = 'none';
-            else controls.style.display = 'flex';
-        }
-
-        function closeStation() {
-            document.getElementById('detail-screen').classList.remove('active');
-            document.getElementById('detail-screen').classList.add('hidden');
-            document.getElementById('hub-screen').classList.remove('hidden');
-            document.getElementById('hub-screen').classList.add('active');
-            currentStationId = null;
-        }
-
-        function resolveStation(success) {
-            if(success) {
-                renderStation('success');
-                stationStatus[currentStationId] = true;
-                document.getElementById('node-' + currentStationId).classList.add('done');
-                setTimeout(() => { closeStation(); checkRoundComplete(); }, 1500);
-            } else {
-                renderStation('fail');
-                triggerDamage();
-            }
-        }
-
-        function triggerDamage() {
-            document.body.classList.add('shaking');
-            setTimeout(() => document.body.classList.remove('shaking'), 200);
-            const flash = document.getElementById('fx-flash');
-            flash.style.opacity = 1;
-            setTimeout(() => flash.style.opacity = 0, 200);
-            crackCount++;
-            if(crackCount <= 4) {
-                document.getElementById('fx-crack').style.opacity = 1;
-                document.getElementById('c' + crackCount).setAttribute('visibility', 'visible');
-            }
-        }
-
-        function medicReset() {
-            const btn = event.target;
-            btn.innerText = "TREATING...";
-            btn.style.background = "var(--medic)";
-            btn.style.color = "#000";
-            setTimeout(() => {
-                btn.innerText = "MEDIC: STABILIZE CREW";
-                btn.style.background = "rgba(0,200,255,0.05)";
-                btn.style.color = "var(--medic)";
-            }, 1000);
-        }
-
-        function showOverlay(mainText, subText, duration, callback) {
-            const overlay = document.getElementById('system-overlay');
-            const main = document.getElementById('sys-msg-main');
-            const sub = document.getElementById('sys-msg-sub');
-            
-            main.innerHTML = mainText;
-            sub.innerHTML = subText;
-            overlay.style.opacity = 1;
-            
-            if(duration > 0) {
+    boot: function() {
+        const txt = [
+            "INITIALIZING BIOS...", "CHECKING MEMORY... OK", "LOADING CORE KERNEL... OK", 
+            "MOUNTING DRIVES... OK", "ESTABLISHING UPLINK TO B-13... SUCCESS"
+        ];
+        const container = document.getElementById('boot-content');
+        let i = 0;
+        const int = setInterval(() => {
+            if(i >= txt.length) {
+                clearInterval(int);
                 setTimeout(() => {
-                    overlay.style.opacity = 0;
-                    if(callback) callback();
-                }, duration);
-            } else if (callback) {
-                callback(); // for permanent overlay
+                    document.getElementById('boot-layer').style.display = 'none';
+                    document.getElementById('main-ui').style.opacity = 1;
+                    AudioSys.playTone(200, 'sine', 0.5);
+                }, 500);
+            } else {
+                let p = document.createElement('div');
+                p.className = 'boot-line';
+                p.innerText = txt[i];
+                container.appendChild(p);
+                AudioSys.playTone(800, 'square', 0.05, 0.05);
+                i++;
             }
+        }, 400);
+    },
+
+    openStation: function(id) {
+        if(this.status[id] || this.surges >= this.maxSurges) return;
+        AudioSys.click();
+        this.currentId = id;
+        const rData = DB[this.round][id];
+        
+        document.getElementById('term-title').innerText = id.toUpperCase();
+        this.scrambleText('log-desc', rData.desc);
+        this.scrambleText('log-hint', rData.hint);
+        this.scrambleText('log-fail', rData.fail);
+        
+        document.getElementById('viz-target').innerHTML = Viz.render(id, this.round, 'neutral');
+        document.documentElement.style.setProperty('--c-core', DB[this.round].color);
+        document.getElementById('modal').classList.add('active');
+        
+        this.log('sys', `ACCESSING NODE ${id.toUpperCase()}...`);
+    },
+
+    closeModal: function() {
+        AudioSys.click();
+        document.getElementById('modal').classList.remove('active');
+    },
+
+    resolve: function(success) {
+        if(success) {
+            AudioSys.success();
+            this.log('ok', `${this.currentId.toUpperCase()} STABILIZED`);
+            document.getElementById('viz-target').innerHTML = Viz.render(this.currentId, this.round, 'success');
+            this.status[this.currentId] = true;
+            document.getElementById('node-'+this.currentId).classList.add('completed');
+            
+            // Particles
+            const rect = document.getElementById('viz-target').getBoundingClientRect();
+            Particles.spawn(rect.left + rect.width/2, rect.top + rect.height/2, '#00ff9d', 30, 5);
+
+            setTimeout(() => {
+                this.closeModal();
+                this.checkRound();
+            }, 1500);
+        } else {
+            AudioSys.fail();
+            this.log('crit', `SURGE DETECTED IN ${this.currentId.toUpperCase()}`);
+            document.getElementById('viz-target').innerHTML = Viz.render(this.currentId, this.round, 'fail');
+            this.triggerSurge();
+        }
+    },
+
+    triggerSurge: function() {
+        this.surges++;
+        document.getElementById('surge-display').innerText = `SURGES: ${this.surges}/${this.maxSurges}`;
+        
+        // Particles
+        Particles.spawn(window.innerWidth/2, window.innerHeight/2, '#ff2a2a', 50, 15);
+        
+        // FX
+        const layer = document.getElementById('fracture-layer');
+        layer.style.display = 'block';
+        for(let i=0; i<3; i++) {
+            let div = document.createElement('div');
+            div.className = 'shard';
+            div.style.top = Math.random()*90+'%'; div.style.left = Math.random()*90+'%';
+            div.style.width = Math.random()*200+'px'; div.style.height = Math.random()*50+'px';
+            div.style.clipPath = `polygon(${Math.random()*100}% 0%, 100% ${Math.random()*100}%, 0% 100%)`;
+            div.style.transform = `rotate(${Math.random()*360}deg)`;
+            div.animate([{opacity:1, transform:'scale(1)'}, {opacity:0, transform:'scale(0.5) translate(20px, 20px)'}], {duration: 1000, fill:'forwards'});
+            layer.appendChild(div);
         }
 
-        function checkRoundComplete() {
-            if(stationStatus.alpha && stationStatus.delta && stationStatus.zeta) {
-                if(currentRound < 3) {
-                    // --- ROUND TRANSITION ---
-                    showOverlay(
-                        `ROUND ${currentRound} COMPLETE`,
-                        `INITIATING SEQUENCE ${currentRound + 1}... STANDBY.`,
-                        3000,
-                        () => {
-                            currentRound++;
-                            stationStatus = { alpha: false, delta: false, zeta: false };
-                            document.querySelectorAll('.station-btn').forEach(btn => btn.classList.remove('done'));
-                            document.getElementById('round-indicator').innerText = rounds[currentRound].name;
-                            document.getElementById('round-indicator').style.color = "var(--warn)";
-                            
-                            // Clear cracks for fresh round? Optional.
-                            // document.getElementById('fx-crack').style.opacity = 0;
-                        }
-                    );
-                } else {
-                    // --- FINAL VICTORY ---
-                    triggerVictory();
-                }
-            }
+        document.body.classList.add('glitch-mode');
+        setTimeout(() => document.body.classList.remove('glitch-mode'), 500);
+
+        if(this.surges >= this.maxSurges) {
+            setTimeout(() => this.totalFailure(), 1000);
+        }
+    },
+
+    totalFailure: function() {
+        this.closeModal();
+        document.body.classList.add('critical-failure');
+        
+        // Create massive fracture
+        const layer = document.getElementById('fracture-layer');
+        for(let i=0; i<60; i++) {
+            let div = document.createElement('div');
+            div.className = 'shard';
+            div.style.top = Math.random()*100+'%'; div.style.left = Math.random()*100+'%';
+            div.style.width = Math.random()*400+'px'; div.style.height = Math.random()*200+'px';
+            div.style.clipPath = `polygon(${Math.random()*100}% 0%, 100% ${Math.random()*100}%, 0% 100%)`;
+            layer.appendChild(div);
         }
 
-        function triggerVictory() {
-            // 1. Clear Damage
-            document.getElementById('fx-crack').style.opacity = 0;
-            
-            // 2. Change Visual Mode
-            document.body.classList.add('victory-mode');
-            
-            // 3. Overlay Sequence
-            const overlay = document.getElementById('system-overlay');
-            const main = document.getElementById('sys-msg-main');
-            const sub = document.getElementById('sys-msg-sub');
-            
-            main.innerHTML = "B-13 STABILIZATION COMPLETE";
-            main.style.color = "var(--calm)";
-            sub.innerHTML = ""; // Clear for typing
-            overlay.style.opacity = 1;
+        AudioSys.alarm();
+        const overlay = document.getElementById('system-overlay');
+        document.getElementById('sys-title').innerText = "TERMINAL LOCKOUT";
+        document.getElementById('sys-title').style.color = "#ff2a2a";
+        document.getElementById('sys-body').innerText = "CATASTROPHIC FAILURE // REACTOR UNSAFE";
+        overlay.style.opacity = 1;
+    },
 
-            const victoryText = `
-                Reactor Bay energy distribution is secure.
-                All systems returning to optimal levels.
-                <br><br>
-                Crew performance standard: exemplary.
-            `;
-
-            // Typewriter effect
-            let i = 0;
-            let txt = victoryText.replace(/<br>/g, '|'); // quick hack for lines
-            let speed = 50;
+    checkRound: function() {
+        if(this.status.alpha && this.status.delta && this.status.zeta) {
             
-            function typeWriter() {
-                if (i < victoryText.length) {
-                    sub.innerHTML = victoryText.substring(0, i+1);
-                    i++;
-                    setTimeout(typeWriter, speed);
-                }
+            // 1. Fire the Beam for this round
+            AudioSys.playTone(200, 'sine', 1.5);
+            document.getElementById('beam-'+this.round).classList.add('beam-active');
+            this.log('sys', `CIRCUIT ${this.round} LOCKED`);
+
+            if(this.round < 3) {
+                setTimeout(() => {
+                    // Overlay Message (No popup)
+                    this.displayMessage(`ROUND ${this.round} COMPLETE`, `INITIATING PHASE ${this.round+1}...`, 3000, () => {
+                        this.round++;
+                        this.status = { alpha: false, delta: false, zeta: false };
+                        // Reset UI
+                        document.querySelectorAll('.node-group').forEach(n => n.classList.remove('completed'));
+                        
+                        const badge = document.getElementById('badge-round');
+                        badge.innerText = DB[this.round].name;
+                        badge.style.borderColor = DB[this.round].color;
+                        badge.style.color = DB[this.round].color;
+                        
+                        this.log('warn', `ENTERING PHASE ${this.round}`);
+                    });
+                }, 1500); 
+            } else {
+                // Final Victory
+                setTimeout(() => {
+                    document.getElementById('trinity-glow').classList.add('trinity-active');
+                    Particles.spawn(window.innerWidth/2, window.innerHeight/2, '#fff', 100, 20);
+                    AudioSys.playTone(800, 'sine', 2);
+                    setTimeout(() => this.victory(), 2000);
+                }, 1500);
             }
-            setTimeout(typeWriter, 1000);
         }
-    </script>
+    },
+
+    displayMessage: function(title, body, time, callback) {
+        const overlay = document.getElementById('system-overlay');
+        document.getElementById('sys-title').innerText = title;
+        document.getElementById('sys-body').innerText = body;
+        overlay.style.opacity = 1;
+        setTimeout(() => {
+            overlay.style.opacity = 0;
+            if(callback) callback();
+        }, time);
+    },
+
+    victory: function() {
+        document.body.classList.add('victory');
+        this.displayMessage("SYSTEM STABILIZED", "POWER DISTRIBUTION OPTIMAL // BRIDGE UNLOCKED", 6000);
+        document.getElementById('badge-round').innerText = "ONLINE";
+        document.getElementById('badge-round').style.color = "#fff";
+        document.getElementById('badge-round').style.borderColor = "#fff";
+        this.log('ok', 'SYSTEM STABILIZATION COMPLETE');
+    },
+
+    scrambleText: function(id, txt) {
+        const el = document.getElementById(id);
+        const chars = 'ABCDEF0123456789@#';
+        let i = 0;
+        clearInterval(el.int);
+        el.int = setInterval(() => {
+            el.innerText = txt.split('').map((c, idx) => (idx < i ? txt[idx] : chars[Math.floor(Math.random()*chars.length)])).join('');
+            if(i >= txt.length) clearInterval(el.int);
+            i += 1/2;
+        }, 20);
+    },
+    
+    medic: function() {
+        AudioSys.click();
+        this.log('sys', 'MEDIC ASSISTANCE REQUESTED...');
+        const b = event.target;
+        b.innerText = "TREATING..."; b.style.background = "var(--c-medic)"; b.style.color="#000";
+        setTimeout(()=>{ b.innerText="MEDIC: STABILIZE CREW"; b.style.background="transparent"; b.style.color="var(--c-medic)"; }, 1500);
+    }
+};
+
+/* --- VISUALIZERS --- */
+const Viz = {
+    render: function(id, r, s) {
+        if(id==='alpha') return this.alpha(r,s);
+        if(id==='delta') return this.delta(r,s);
+        if(id==='zeta') return this.zeta(r,s);
+    },
+    alpha: function(r,s) {
+        let c = s==='success'?'#00ff9d':(s==='fail'?'#ff2a2a':DB[r].color);
+        let sp = r===1?'8s':(r===2?'4s':'1s');
+        if(s==='success') sp='20s';
+        return `<svg width="300" height="300" viewBox="0 0 200 200">
+            <circle cx="100" cy="100" r="90" fill="none" stroke="${c}" stroke-width="1" opacity="0.3"/>
+            <g>
+                <animateTransform attributeName="transform" type="rotate" from="0 100 100" to="360 100 100" dur="${sp}" repeatCount="indefinite"/>
+                <path d="M100,10 L110,10 L115,25 L130,30 L145,20 L155,25 L150,40 L165,50 L180,45 L185,55 L170,65 L175,80 L190,85 L190,95 L175,100 L175,115 L190,120 L185,130 L170,135 L165,150 L180,160 L170,170 L155,165 L150,180 L135,185 L130,170 L115,175 L110,190 L100,190 L90,190 L85,175 L70,170 L65,185 L50,180 L45,165 L30,170 L20,160 L35,150 L30,135 L15,130 L10,120 L25,115 L25,100 L10,95 L10,85 L25,80 L30,65 L15,55 L20,45 L35,50 L50,40 L45,25 L55,20 L70,30 L85,25 L90,10 Z" fill="none" stroke="${c}" stroke-width="2"/>
+                <circle cx="100" cy="100" r="50" fill="none" stroke="${c}" stroke-width="4" stroke-dasharray="10,5"/>
+            </g>
+            <text x="100" y="105" fill="${c}" font-family="monospace" font-size="10" text-anchor="middle">${s==='success'?'LOCKED':'ROTATING'}</text>
+        </svg>`;
+    },
+    delta: function(r,s) {
+        let c = s==='success'?'#00ff9d':(s==='fail'?'#ff2a2a':DB[r].color);
+        // Fix: Liquid fills from bottom (y=180 is bottom)
+        let fillPct = r===1?0.5:(r===2?0.7:0.9);
+        if(s==='success') fillPct=0.5; if(s==='fail') fillPct=1.0;
+        let h = 160 * fillPct; 
+        let y = 180 - h; // 180 minus height pushes rect UP
+        
+        return `<svg width="300" height="300" viewBox="0 0 200 200">
+            <rect x="60" y="20" width="80" height="160" rx="5" fill="none" stroke="#333" stroke-width="4"/>
+            <rect x="60" y="20" width="80" height="160" rx="5" fill="none" stroke="${c}" stroke-width="2"/>
+            <rect x="65" y="${y}" width="70" height="${h}" fill="${c}" opacity="0.6">
+                <animate attributeName="height" values="${h};${h+5};${h}" dur="2s" repeatCount="indefinite"/>
+                <animate attributeName="y" values="${y};${y-5};${y}" dur="2s" repeatCount="indefinite"/>
+            </rect>
+            <circle cx="80" cy="160" r="3" fill="${c}"><animate attributeName="cy" from="160" to="30" dur="2s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;0" dur="2s" repeatCount="indefinite"/></circle>
+            <text x="20" y="100" fill="${c}" font-family="monospace" font-size="12" transform="rotate(-90 20,100)">${Math.floor(fillPct*100)} PSI</text>
+        </svg>`;
+    },
+    zeta: function(r,s) {
+        let c = s==='success'?'#00ff9d':(s==='fail'?'#ff2a2a':DB[r].color);
+        let chaos = s==='fail'?100:(s==='success'?0:(r*20));
+        let path = "M0,100 ";
+        for(let i=0;i<=20;i++){ path += `L${i*10},${100+(Math.random()*chaos - chaos/2)} `; }
+        let dur = s==='fail'?'0.05s':'0.5s'; if(s==='success') { path="M0,100 L200,100"; dur="0s"; }
+        return `<svg width="300" height="300" viewBox="0 0 200 200">
+            <rect width="200" height="200" fill="rgba(0,0,0,0.2)"/>
+            <path d="M0,50 L200,50 M0,150 L200,150 M100,0 L100,200" stroke="${c}" stroke-width="1" opacity="0.2"/>
+            <path d="${path}" fill="none" stroke="${c}" stroke-width="3">
+                <animate attributeName="d" dur="${dur}" repeatCount="indefinite" values="${path}; ${path.replace(/100/g,'110')}; ${path}"/>
+            </path>
+        </svg>`;
+    }
+};
+
+Game.init();
+</script>
 </body>
 </html>
