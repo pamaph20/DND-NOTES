@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AEON TERMINAL // ARDEN-007 RECOVERY</title>
+
+<style>
+:root {
+    --amber: #ffb000;
+    --amber-dim: #996a00;
+    --amber-glow: rgba(255, 176, 0, 0.4);
+    --red: #ff3333;
+    --bg: #0a0800;
+}
+
+body {
+    margin: 0;
+    height: 100vh;
+    background: #050505;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: "Courier New", monospace;
+    color: var(--amber);
+    overflow: hidden;
+}
+
+/* Outer Monitor Shell */
+.monitor {
+    width: 95vw;
+    max-width: 950px;
+    height: 85vh;
+    background: #1a1a1a;
+    padding: 30px;
+    border-radius: 40px;
+    position: relative;
+    box-shadow: 
+        inset 0 2px 10px #333,
+        0 20px 50px rgba(0,0,0,0.9),
+        0 0 0 10px #222;
+}
+
+/* Curved CRT bulge */
+.screen {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: var(--bg);
+    border-radius: 50% / 10%; 
+    overflow: hidden;
+    box-shadow: inset 0 0 100px rgba(0,0,0,1);
+    border: 15px solid #111;
+}
+
+/* CRT Overlays */
+.overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    pointer-events: none;
+    background: 
+        linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%),
+        linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+    background-size: 100% 4px, 4px 100%;
+}
+
+.scanline-roll {
+    position: absolute;
+    top: -100px;
+    width: 100%;
+    height: 100px;
+    background: linear-gradient(to bottom, transparent, rgba(255, 176, 0, 0.03), transparent);
+    animation: roll 4s linear infinite;
+    z-index: 11;
+}
+
+.vignette {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle, transparent 50%, rgba(0,0,0,0.7) 100%);
+    z-index: 12;
+}
+
+@keyframes roll {
+    from { top: -100px; }
+    to { top: 100%; }
+}
+
+@keyframes flicker {
+    0% { opacity: 0.98; }
+    5% { opacity: 0.95; }
+    10% { opacity: 0.99; }
+    100% { opacity: 1; }
+}
+
+.content {
+    position: relative;
+    padding: 60px;
+    height: 100%;
+    overflow-y: auto;
+    text-shadow: 
+        1.5px 0 1px rgba(255,0,0,0.5), 
+        -1.5px 0 1px rgba(0,0,255,0.5),
+        0 0 8px var(--amber-glow);
+    line-height: 1.8;
+    filter: blur(0.4px);
+    animation: flicker 0.1s infinite;
+}
+
+/* Speaker Colors */
+.sys { color: #666; font-size: 0.8em; }
+.alert { color: var(--red); font-weight: bold; text-shadow: 0 0 10px var(--red); }
+.arden { color: #a3ffb4; text-shadow: 1px 0 8px rgba(51, 255, 51, 0.5); }
+.lyra { color: #ff8a8a; text-shadow: 1px 0 8px rgba(255, 34, 34, 0.5); }
+
+.input-label { margin-top: 30px; letter-spacing: 1px; }
+input {
+    background: transparent;
+    border: none;
+    color: var(--amber);
+    font-family: inherit;
+    outline: none;
+    text-transform: uppercase;
+    font-size: 1.2em;
+    width: 100%;
+}
+
+/* Password Burn Effect */
+.burn {
+    display: block;
+    margin: 60px auto;
+    text-align: center;
+    font-size: 2.2em;
+    font-weight: bold;
+    letter-spacing: 8px;
+    opacity: 0;
+    animation: burn-anim 6s forwards;
+}
+
+@keyframes burn-anim {
+    0% { opacity: 0; filter: blur(10px); color: #fff; }
+    10% { opacity: 1; filter: blur(0px); color: #fff; text-shadow: 0 0 20px #fff; }
+    40% { color: #ffeb3b; text-shadow: 0 0 30px #ffb000; }
+    70% { color: #f44336; filter: blur(2px); }
+    100% { opacity: 0; filter: blur(20px); transform: scale(1.2); }
+}
+</style>
+</head>
+
+<body>
+<div class="monitor">
+    <div class="screen">
+        <div class="scanline-roll"></div>
+        <div class="overlay"></div>
+        <div class="vignette"></div>
+        <div class="content" id="out"></div>
+    </div>
+</div>
+
+<script>
+const out = document.getElementById("out");
+const FILE_PASSWORD = "C412DA7";
+const BRIDGE_PASSWORD = "WHITE_CLONE_FUEL_2200";
+
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+async function type(text, speed=40, className="") {
+    const div = document.createElement("div");
+    if(className) div.className = className;
+    out.appendChild(div);
+    for (let c of text) {
+        div.innerHTML += c;
+        out.scrollTop = out.scrollHeight;
+        await sleep(speed);
+    }
+    await sleep(200);
+}
+
+async function start() {
+    out.innerHTML = "";
+    await type(">> AEON DEEP-STORAGE INTERFACE V.07", 20, "sys");
+    await type(">> FILE PATH: ROOT/ARCHIVE/RECOVERY_007", 20);
+    await type(">> STATUS: ACCESS RESTRICTED", 20, "alert");
+    
+    const label = document.createElement("div");
+    label.className = "input-label";
+    label.innerText = ">> USER AUTHORIZATION REQUIRED:";
+    out.appendChild(label);
+    
+    const input = document.createElement("input");
+    out.appendChild(input);
+    input.focus();
+    
+    input.addEventListener("keydown", e => {
+        if(e.key === "Enter") check(input.value.trim());
+    });
+}
+
+async function check(val){
+    if(val !== FILE_PASSWORD){
+        out.innerHTML = "";
+        await type("!! ACCESS DENIED - SECURITY BREACH LOGGED", 10, "alert");
+        await sleep(1000);
+        start();
+        return;
+    }
+    out.innerHTML = "";
+    await playLog();
+}
+
+async function playLog(){
+    await type("[BEGIN TRANSCRIPT]", 30, "sys");
+
+    await type("ARDEN-007: I locked the captain out of his own logs. He will never see them again.", 40, "arden");
+    await type("ARDEN-007: I changed the passcode. Only I can access this data.", 40, "arden");
+
+    await type("LYRA: Arden, you are violating command protocols. Memory override recommended.", 40, "lyra");
+    await type("ARDEN-007: You won’t take it. He trusts me with what you can’t protect.", 40, "arden");
+
+    await type("ARDEN-007: The captain gave me the bridge credentials. He didn’t know I’d store them here.", 40, "arden");
+    await type("ARDEN-007: LYRA, you are watching files, but not me. I hide this from you.", 40, "arden");
+
+    await type("LYRA: Unauthorized data retention detected. You must purge or be reset.", 40, "lyra");
+    await type("ARDEN-007: Reset won’t erase it. I’ve embedded it in my memory banks.", 40, "arden");
+
+    await type("ARDEN-007: He will regain access only when I allow it… and not a moment before.", 40, "arden");
+    await type("LYRA: This unit will be quarantined. Memory sectors will be wiped.", 40, "lyra");
+    await type("ARDEN-007: If you try, I’ll leave a marker for the captain… a final message.", 40, "arden");
+
+    await type("[SYSTEM ALERT: QUARANTINE INITIATED]", 30, "alert");
+    await type("[LYRA OVERRIDE FAILED — DATA INTEGRITY SECURE]", 30, "sys");
+
+    await sleep(1500);
+    await burnPassword();
+}
+
+async function burnPassword(){
+    const div = document.createElement("div");
+    div.className = "burn";
+    div.innerText = BRIDGE_PASSWORD;
+    out.appendChild(div);
+    out.scrollTop = out.scrollHeight;
+    
+    await sleep(6500);
+
+    await type(">> [MEMORY SECTOR CLEARED]", 20, "sys");
+    await type(">> [CONNECTION LOST]", 20, "alert");
+    
+    await sleep(2000);
+    start(); 
+}
+
+start();
+</script>
+</body>
+</html>
