@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ANDROMEDA // MAIN_CONSOLE_ACCESS</title>
+    
+    <style>
+        /* ----------------------------------------------------------------
+        GLOBAL VARIABLES & THEME CONFIGURATION
+        ---------------------------------------------------------------- 
+        */
+        :root {
+            /* COLORS */
+            --amber-primary: #ffb000;
+            --amber-dim: #b8860b;
+            --amber-dark: #423000;
+            --amber-off: #1a1200;
+            
+            --alert-red: #ff3333;
+            --alert-dim: #7a0000;
+            
+            --scanline-color: rgba(0, 0, 0, 0.5);
+            --bg-color: #050505;
+            --glass-reflection: rgba(255, 255, 255, 0.02);
+            
+            /* DIMENSIONS */
+            --screen-padding: 40px;
+            --border-radius: 20px;
+            
+            /* TYPOGRAPHY */
+            --font-main: 'Courier New', Courier, monospace;
+            --font-ui: 'Lucida Console', Monaco, monospace;
+        }
+
+        /* ----------------------------------------------------------------
+        CORE RESET & BODY
+        ---------------------------------------------------------------- 
+        */
+        * {
+            box-sizing: border-box;
+            scrollbar-width: thin;
+            scrollbar-color: var(--amber-dim) var(--bg-color);
+        }
+
+        body {
+            background-color: #000;
+            margin: 0;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: var(--font-main);
+            overflow: hidden;
+            color: var(--amber-primary);
+            perspective: 1000px; /* For 3D screen effect */
+        }
+
+        /* ----------------------------------------------------------------
+        CRT CHASSIS & SCREEN SIMULATION
+        ---------------------------------------------------------------- 
+        */
+        .crt-chassis {
+            width: 95vw;
+            height: 90vh;
+            max-width: 1400px;
+            max-height: 900px;
+            background: #111;
+            padding: 10px;
+            border-radius: 30px;
+            box-shadow: 
+                0 0 0 2px #333,
+                0 0 50px rgba(0,0,0,0.8);
+            position: relative;
+        }
+
+        .screen-container {
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-color);
+            border-radius: var(--border-radius);
+            position: relative;
+            overflow: hidden;
+            box-shadow: inset 0 0 80px rgba(0,0,0,0.7);
+            border: 1px solid #333;
+            transform-style: preserve-3d;
+        }
+
+        /* ----------------------------------------------------------------
+        VISUAL EFFECTS LAYER (GLITCH, SCANLINES, CURVE)
+        ---------------------------------------------------------------- 
+        */
+        
+        /* The Curved Glass Effect */
+        .screen-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: 100;
+            pointer-events: none;
+            background: 
+                /* Scanlines */
+                linear-gradient(
+                    to bottom,
+                    rgba(0,0,0,0) 50%,
+                    rgba(0,0,0,0.25) 50%
+                ),
+                /* Vertical comb filter */
+                linear-gradient(
+                    90deg,
+                    rgba(255,0,0,0.06),
+                    rgba(0,255,0,0.02),
+                    rgba(0,0,255,0.06)
+                );
+            background-size: 100% 4px, 6px 100%;
+            border-radius: var(--border-radius);
+            box-shadow: inset 0 0 100px rgba(0,0,0,0.9);
+        }
+
+        /* Flicker Animation */
+        .screen-flicker {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255, 176, 0, 0.02);
+            z-index: 99;
+            pointer-events: none;
+            animation: flicker 0.15s infinite;
+        }
+
+        @keyframes flicker {
+            0% { opacity: 0.9; }
+            5% { opacity: 0.8; }
+            10% { opacity: 0.9; }
+            15% { opacity: 0.85; }
+            20% { opacity: 0.9; }
+            50% { opacity: 0.8; }
+            100% { opacity: 0.9; }
+        }
+
+        /* Text Glow & Shadow */
+        .ui-layer {
+            position: relative;
+            z-index: 10;
+            height: 100%;
+            width: 100%;
+            padding: var(--screen-padding);
+            display: flex;
+            flex-direction: column;
+            text-shadow: 0 0 4px var(--amber-dim);
+            filter: contrast(1.2) brightness(1.1);
+        }
+
+        /* ----------------------------------------------------------------
+        BOOT SEQUENCE SCREEN
+        ---------------------------------------------------------------- 
+        */
+        #boot-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #000;
+            z-index: 999;
+            padding: 50px;
+            font-family: var(--font-ui);
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+        }
+
+        .boot-line {
+            margin-bottom: 5px;
+            opacity: 0;
+            animation: fadeIn 0.1s forwards;
+        }
+
+        @keyframes fadeIn { to { opacity: 1; } }
+
+        /* ----------------------------------------------------------------
+        LAYOUT: HEADER
+        ---------------------------------------------------------------- 
+        */
+        header {
+            border-bottom: 2px solid var(--amber-primary);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            flex-shrink: 0;
+        }
+
+        .header-left h1 {
+            font-size: 32px;
+            margin: 0 0 5px 0;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+        }
+
+        .header-meta {
+            font-size: 10px;
+            opacity: 0.7;
+            font-family: var(--font-ui);
+        }
+
+        .sys-badge {
+            border: 1px solid var(--amber-primary);
+            padding: 4px 8px;
+            font-size: 11px;
+            letter-spacing: 1px;
+            box-shadow: 0 0 10px var(--amber-dim);
+        }
+
+        /* ----------------------------------------------------------------
+        LAYOUT: MAIN INTERFACE
+        ---------------------------------------------------------------- 
+        */
+        .interface-grid {
+            display: flex;
+            height: 100%;
+            overflow: hidden;
+            border: 1px solid var(--amber-dim);
+        }
+
+        /* SIDEBAR NAV */
+        .sidebar {
+            width: 250px;
+            border-right: 2px solid var(--amber-primary);
+            display: flex;
+            flex-direction: column;
+            background: rgba(255, 176, 0, 0.05);
+        }
+
+        .nav-btn {
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid var(--amber-dim);
+            color: var(--amber-primary);
+            padding: 15px 20px;
+            text-align: left;
+            font-family: var(--font-main);
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            text-transform: uppercase;
+        }
+
+        .nav-btn:hover {
+            background: rgba(255, 176, 0, 0.2);
+            padding-left: 25px;
+        }
+
+        .nav-btn.active {
+            background: var(--amber-primary);
+            color: #000;
+            font-weight: bold;
+            box-shadow: 0 0 15px var(--amber-primary);
+        }
+
+        .nav-btn.active::before {
+            content: ">>";
+            margin-right: 5px;
+        }
+
+        /* VIEWPORT CONTENT */
+        .viewport {
+            flex-grow: 1;
+            padding: 30px;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .content-page {
+            display: none;
+            animation: slideUp 0.3s ease-out;
+        }
+        
+        .content-page.active {
+            display: block;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h2 {
+            border-bottom: 1px dashed var(--amber-primary);
+            padding-bottom: 10px;
+            margin-top: 0;
+            font-size: 24px;
+        }
+
+        p {
+            line-height: 1.6;
+            margin-bottom: 20px;
+            max-width: 900px;
+        }
+
+        /* ----------------------------------------------------------------
+        COMPONENT: WARNING BOXES & LOGS
+        ---------------------------------------------------------------- 
+        */
+        .warning-box {
+            border: 1px solid var(--amber-primary);
+            background: rgba(255, 176, 0, 0.1);
+            padding: 20px;
+            margin: 20px 0;
+            position: relative;
+        }
+        
+        .warning-box::before {
+            content: "WARNING // NOTICE";
+            position: absolute;
+            top: -10px;
+            left: 10px;
+            background: #000;
+            padding: 0 5px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+
+        .log-entry {
+            border-left: 2px solid var(--amber-dim);
+            padding-left: 15px;
+            margin-bottom: 25px;
+        }
+
+        .log-header {
+            display: flex;
+            gap: 15px;
+            font-weight: bold;
+            margin-bottom: 5px;
+            font-family: var(--font-ui);
+        }
+
+        /* ----------------------------------------------------------------
+        COMPONENT: CREW MONITOR (COMPLEX)
+        ---------------------------------------------------------------- 
+        */
+        .crew-dashboard {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 20px;
+            height: 100%;
+        }
+
+        .crew-selector {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .crew-card-btn {
+            background: rgba(0,0,0,0.5);
+            border: 1px solid var(--amber-dim);
+            padding: 10px;
+            cursor: pointer;
+            text-align: left;
+            transition: 0.2s;
+            color: var(--amber-primary);
+        }
+
+        .crew-card-btn:hover { border-color: var(--amber-primary); }
+        .crew-card-btn.selected { 
+            background: rgba(255, 176, 0, 0.1); 
+            border: 1px solid var(--amber-primary);
+            border-left: 4px solid var(--amber-primary);
+        }
+
+        .crew-role { font-size: 10px; opacity: 0.7; }
+        .crew-name { font-weight: bold; font-size: 14px; }
+
+        .crew-detail-panel {
+            border: 1px solid var(--amber-dim);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .vitals-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .vital-module {
+            border: 1px solid var(--amber-dim);
+            padding: 10px;
+            text-align: center;
+        }
+        
+        .vital-label { font-size: 10px; opacity: 0.6; margin-bottom: 5px; }
+        .vital-val { font-size: 20px; font-weight: bold; font-family: var(--font-ui); }
+
+        .graph-container {
+            flex-grow: 1;
+            border: 1px solid var(--amber-dim);
+            position: relative;
+            background: rgba(0,0,0,0.2);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* SVG Graph Styling */
+        svg { width: 100%; height: 100%; }
+        polyline {
+            fill: none;
+            stroke: var(--amber-primary);
+            stroke-width: 2;
+            vector-effect: non-scaling-stroke;
+        }
+
+        /* ----------------------------------------------------------------
+        ALERT STATES
+        ---------------------------------------------------------------- 
+        */
+        .alert-mode {
+            --amber-primary: #ff3333;
+            --amber-dim: #770000;
+        }
+        
+        .alert-text {
+            color: var(--alert-red);
+            animation: blinkRed 1s infinite;
+        }
+
+        @keyframes blinkRed { 
+            0% { opacity: 1; } 
+            50% { opacity: 0.4; } 
+            100% { opacity: 1; }
+        }
+
+        /* ----------------------------------------------------------------
+        SCROLLBARS & UTILS
+        ---------------------------------------------------------------- 
+        */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #000; }
+        ::-webkit-scrollbar-thumb { background: var(--amber-primary); border: 1px solid #000; }
+
+        .scan-line-decoration {
+            width: 100%; height: 1px;
+            background: var(--amber-dim);
+            margin: 10px 0;
+            opacity: 0.5;
+        }
+
+        .tiny-text { font-size: 9px; opacity: 0.5; line-height: 1.2; }
+
+    </style>
+</head>
+<body>
+
+    <div class="crt-chassis">
+        <div class="screen-container">
+            <div class="screen-overlay"></div>
+            <div class="screen-flicker"></div>
+            
+            <div id="boot-screen">
+                </div>
+
+            <div class="ui-layer" id="main-interface" style="display: none;">
+                
+                <header>
+                    <div class="header-left">
+                        <h1>ANDROMEDA_SYS</h1>
+                        <div class="header-meta">
+                            TERMINAL: MED_BAY_04<br>
+                            USER: AUTO_ADMIN<br>
+                            CONNECTION: SECURE (LOCAL)
+                        </div>
+                    </div>
+                    <div class="header-right">
+                        <div class="sys-badge" id="global-status">SYSTEM OPTIMAL</div>
+                    </div>
+                </header>
+
+                <div class="interface-grid">
+                    
+                    <div class="sidebar">
+                        <button class="nav-btn active" onclick="nav('protocol')">01_PROTOCOL</button>
+                        <button class="nav-btn" onclick="nav('crew')">02_CREW_VITALS</button>
+                        <button class="nav-btn" onclick="nav('psyche')">03_PSYCHE_EVAL</button>
+                        <button class="nav-btn" onclick="nav('reclaim')">04_RECLAMATION</button>
+                        <button class="nav-btn" onclick="nav('logs')">05_ARCHIVE_LOGS</button>
+                        
+                        <div style="margin-top: auto; padding: 20px; font-size: 10px; color: var(--amber-dim);">
+                            <pre>
+  _____
+ /     \
+|  (o)  |
+ \_____/
+                            </pre>
+                            ANDROMEDA OS<br>
+                            v9.4.2259
+                        </div>
+                    </div>
+
+                    <div class="viewport">
+                        
+                        <div id="page-protocol" class="content-page active">
+                            <h2>// CONTINUITY PROTOCOL — MEDICAL OVERVIEW</h2>
+                            
+                            <div class="warning-box">
+                                <strong>CLASSIFIED LEVEL 4</strong><br>
+                                EYES ONLY. DISSEMINATION OF CONTINUITY PROCEDURES TO ACTIVE ITERATIONS IS A VIOLATION OF MISSION SAFETY PARAMETERS.
+                            </div>
+
+                            <p><strong>CONTINUITY</strong> is a medical and operational procedure designed to preserve uninterrupted crew function aboard the Andromeda following fatal or irreversible physiological failure. In the event of crew death, catastrophic injury, or system-determined nonviability, Continuity procedures are automatically initiated without requirement for crew awareness or consent.</p>
+                            
+                            <p>Upon activation, a genetically identical biological replacement is cultivated using archived genomic material and accelerated growth protocols, matured to operational age, and subjected to standard physiological and neurological stress testing.</p>
+
+                            <div class="scan-line-decoration"></div>
+
+                            <h3>[ETHICAL WAIVER SUBSECTION 4.a]</h3>
+                            <p class="tiny-text">
+                                Ethical review determined that Continuity does not constitute crew harm, as individual loss is prevented through functional replacement and psychological harm is minimized through identity suppression. Informed consent is waived, as awareness of Continuity has been shown to significantly increase procedural failure rates.
+                            </p>
+                        </div>
+
+                        <div id="page-crew" class="content-page">
+                            <h2>// BIO-METRIC MONITORING</h2>
+                            <div class="crew-dashboard">
+                                <div class="crew-selector">
+                                    <div class="crew-card-btn" onclick="loadCrew('mechanic', this)">
+                                        <div class="crew-role">MECHANIC</div>
+                                        <div class="crew-name">[ENTER NAME]</div>
+                                    </div>
+                                    <div class="crew-card-btn" onclick="loadCrew('electrician', this)">
+                                        <div class="crew-role">ELECTRICIAN</div>
+                                        <div class="crew-name">[ENTER NAME]</div>
+                                    </div>
+                                    <div class="crew-card-btn" onclick="loadCrew('plumber', this)">
+                                        <div class="crew-role">PLUMBER</div>
+                                        <div class="crew-name">[ENTER NAME]</div>
+                                    </div>
+                                    <div class="crew-card-btn" onclick="loadCrew('medic', this)">
+                                        <div class="crew-role">MEDIC</div>
+                                        <div class="crew-name">[ENTER NAME]</div>
+                                    </div>
+                                    <div class="crew-card-btn" onclick="loadCrew('captain', this)" style="color: #ffaa00;">
+                                        <div class="crew-role">CAPTAIN</div>
+                                        <div class="crew-name">JOHN MILLER</div>
+                                    </div>
+                                </div>
+
+                                <div class="crew-detail-panel" id="crew-panel">
+                                    <div style="display:flex; height:100%; align-items:center; justify-content:center; opacity:0.3;">
+                                        &lt; SELECT SUBJECT TO INITIALIZE STREAM &gt;
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="page-psyche" class="content-page">
+                            <h2>// MEMORY SUPPRESSION & IDENTITY</h2>
+                            <p>Operational knowledge necessary for role fulfillment is restored through neural imprinting. <strong>Personal memory data associated with prior biological instances is intentionally excluded.</strong></p>
+                            
+                            <div class="warning-box">
+                                <strong>IDENTITY PERSISTENCE RISK</strong><br>
+                                Retention of episodic memory, emotional attachments, or self-referential identity markers has been clinically shown to increase distress, reduce compliance, and compromise post-activation performance.
+                            </div>
+
+                            <p>Memory suppression is therefore not considered a side effect of Continuity, but a required component of successful replacement. Replacement personnel are medically classified as <strong>iterations</strong> rather than survivors.</p>
+                            
+                            <blockquote style="border-left: 4px solid var(--amber-primary); padding-left: 15px; font-style: italic; margin: 30px 0;">
+                                "Continuity ensures that the ship does not remember its dead. Neither should the crew."
+                            </blockquote>
+                        </div>
+
+                        <div id="page-reclaim" class="content-page">
+                            <h2>// ORGANIC RECLAMATION PROCEDURES</h2>
+                            <p>Following replacement activation, the prior biological instance is processed through reclamation procedures.</p>
+                            
+                            <ul style="list-style-type: square; line-height: 2;">
+                                <li><strong>STEP 01:</strong> Organic material liquefaction.</li>
+                                <li><strong>STEP 02:</strong> Separation into viable compounds.</li>
+                                <li><strong>STEP 03:</strong> Redistribution for ship use:
+                                    <ul>
+                                        <li>Nutrient Synthesis (Food Paste)</li>
+                                        <li>Structural Bio-Polymer Reinforcement</li>
+                                        <li>Reactor Mass Supplementation</li>
+                                    </ul>
+                                </li>
+                            </ul>
+
+                            <p><em>Expired iterations are not classified as patients and are not subject to post-mortem medical ethics review.</em></p>
+                        </div>
+
+                        <div id="page-logs" class="content-page">
+                            <h2>// SYSTEM ARCHIVE</h2>
+                            
+                            <div class="log-entry">
+                                <div class="log-header">
+                                    <span>DATE: 2259.04.12</span>
+                                    <span>[CURRENT CYCLE]</span>
+                                </div>
+                                <div>STATUS: SUCCESSFUL ACTIVATION</div>
+                                <p style="margin: 5px 0 0 0; font-size: 13px;">
+                                    Standard replacement cycle initiated for active crew following reactor leak incident. Post-activation vitals stable. Identity suppression protocols holding at 99.8% efficiency. No signs of retrograde memory leakage.
+                                </p>
+                            </div>
+
+                            <div class="log-entry" style="opacity: 0.6;">
+                                <div class="log-header">
+                                    <span>DATE: 2241.11.03</span>
+                                    <span>[ARCHIVED]</span>
+                                </div>
+                                <div>STATUS: ROUTINE MAINTENANCE</div>
+                                <p style="margin: 5px 0 0 0; font-size: 13px;">
+                                    Bio-printers 3 through 5 flushed and recalibrated. Biomass tanks refilled.
+                                </p>
+                            </div>
+
+                            <div class="log-entry" style="border-left-color: var(--alert-red); color: #ff8888;">
+                                <div class="log-header" style="color: var(--alert-red);">
+                                    <span>DATE: 2200.01.01</span>
+                                    <span>!!! CRITICAL FAILURE !!!</span>
+                                </div>
+                                <div>STATUS: SHIP EVACUATION / TOTAL RESET</div>
+                                <p style="margin: 5px 0 0 0; font-size: 13px;">
+                                    <strong>INCIDENT REPORT:</strong> All active players (crew) terminated via "Ship Evacuation" protocols. <br><br>
+                                    <strong>CAUSE:</strong> Widespread "Identity Persistence." Crew began recognizing previous iterations and questioning replacement status. Panic ensued. Mission parameters compromised.<br>
+                                    <strong>RESOLUTION:</strong> Total liquidation. Memory cores wiped. Fresh iterations printed from backup genomic stock.
+                                </p>
+                            </div>
+
+                        </div>
+
+                    </div> </div> </div> </div> </div>
+
+<script>
+    /* ----------------------------------------------------------------
+    DATA STRUCTURES
+    ---------------------------------------------------------------- 
+    */
+    
+    // Helper to generate noisy data for graphs
+    function generateVitals(base, variance, length) {
+        let data = [];
+        let current = base;
+        for(let i=0; i<length; i++) {
+            let change = (Math.random() * variance) - (variance/2);
+            current += change;
+            // clamp
+            if(current > 100) current = 100;
+            if(current < 0) current = 0;
+            data.push(current);
+        }
+        return data;
+    }
+
+    // Special generator for the plumber (drops low)
+    function generatePlumberVitals() {
+        let data = [];
+        for(let i=0; i<50; i++) {
+            let val = 85 + (Math.random() * 10 - 5);
+            // Artificial drops
+            if(i > 10 && i < 15) val = 40 + (Math.random() * 5); // Dip 1
+            if(i > 30 && i < 35) val = 35 + (Math.random() * 5); // Dip 2
+            data.push(val);
+        }
+        return data;
+    }
+
+    const CREW_DB = {
+        'mechanic': {
+            name: "[ENTER NAME]", 
+            role: "MECHANIC",
+            status: "OPERATIONAL",
+            location: "ENGINEERING (DECK 3)",
+            hr: 75,
+            o2: 98,
+            history: generateVitals(90, 5, 50),
+            color: '#ffb000'
+        },
+        'electrician': {
+            name: "[ENTER NAME]", 
+            role: "ELECTRICIAN",
+            status: "OPERATIONAL",
+            location: "SERVER CORE (DECK 2)",
+            hr: 68,
+            o2: 99,
+            history: generateVitals(92, 4, 50),
+            color: '#ffb000'
+        },
+        'plumber': {
+            name: "[ENTER NAME]", 
+            role: "PLUMBER",
+            status: "WARNING: IMMUNO-COMPROMISED",
+            location: "WATER RECLAMATION (DECK 4)",
+            hr: 92,
+            o2: 91,
+            history: generatePlumberVitals(),
+            color: '#ffb000'
+        },
+        'medic': {
+            name: "[ENTER NAME]", 
+            role: "MEDIC",
+            status: "OPERATIONAL",
+            location: "MEDBAY 01",
+            hr: 62,
+            o2: 99,
+            history: generateVitals(95, 2, 50),
+            color: '#ffb000'
+        },
+        'captain': {
+            name: "JOHN MILLER", 
+            role: "CAPTAIN",
+            status: "CRITICAL FAILURE // SIGNAL LOST",
+            location: "UNKNOWN SECTOR",
+            hr: "ERR",
+            o2: "ERR",
+            history: Array(50).fill(0).map(() => Math.random() * 2), // Flatline noise
+            color: '#ff3333',
+            isAlert: true
+        }
+    };
+
+    /* ----------------------------------------------------------------
+    BOOT SEQUENCE LOGIC
+    ---------------------------------------------------------------- 
+    */
+    const bootText = [
+        "BIOS CHECK...",
+        "CPU: ANDROMEDA_QUANTUM_CORE... OK",
+        "RAM: 4096 TB BIO-NEURAL MESH... OK",
+        "LOADING KERNEL...",
+        "MOUNTING VOLUMES: /SYS, /MED, /LOGS...",
+        "CHECKING PERIPHERALS...",
+        "   > LIFE_SUPPORT... OK",
+        "   > RECLAMATION_PUMPS... OK",
+        "   > BIO_PRINTERS... STANDBY",
+        "INITIALIZING GUI...",
+        "ACCESS GRANTED."
+    ];
+
+    const bootScreen = document.getElementById('boot-screen');
+    const mainInterface = document.getElementById('main-interface');
+
+    let lineIndex = 0;
+
+    function runBoot() {
+        if (lineIndex < bootText.length) {
+            const line = document.createElement('div');
+            line.className = 'boot-line';
+            line.textContent = bootText[lineIndex];
+            bootScreen.appendChild(line);
+            lineIndex++;
+            setTimeout(runBoot, Math.random() * 300 + 100);
+        } else {
+            setTimeout(() => {
+                bootScreen.style.display = 'none';
+                mainInterface.style.display = 'flex';
+                // Play a fake startup sound here if audio was allowed
+            }, 800);
+        }
+    }
+
+    // Start boot on load
+    window.onload = runBoot;
+
+
+    /* ----------------------------------------------------------------
+    NAVIGATION LOGIC
+    ---------------------------------------------------------------- 
+    */
+    function nav(pageId) {
+        // Handle Sidebar Classes
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if(btn.textContent.toLowerCase().includes(pageId)) {
+               // Simple text matching for button highlight
+            }
+        });
+        
+        // We need to find the specific button clicked, but I used inline onclick.
+        // Let's just fix the classes manually based on ID matching logic or event.target
+        // A cleaner way for the demo:
+        const buttons = document.querySelectorAll('.nav-btn');
+        const pages = document.querySelectorAll('.content-page');
+
+        pages.forEach(p => p.classList.remove('active'));
+        document.getElementById('page-' + pageId).classList.add('active');
+
+        // Update button state visually
+        // (Simple hack: reset all, find the one that calls this arg)
+        buttons.forEach(b => {
+            b.classList.remove('active');
+            if(b.getAttribute('onclick').includes(pageId)) b.classList.add('active');
+        });
+    }
+
+    /* ----------------------------------------------------------------
+    CREW MONITOR LOGIC
+    ---------------------------------------------------------------- 
+    */
+    function loadCrew(key, btnElement) {
+        // UI Highlight
+        document.querySelectorAll('.crew-card-btn').forEach(b => b.classList.remove('selected'));
+        btnElement.classList.add('selected');
+
+        const data = CREW_DB[key];
+        const panel = document.getElementById('crew-panel');
+        
+        // Handle Alert State (Captain)
+        if(data.isAlert) {
+            panel.classList.add('alert-mode');
+        } else {
+            panel.classList.remove('alert-mode');
+        }
+
+        // Generate SVG Graph
+        const graphPoints = data.history.map((val, idx) => {
+            // Map 0-50 X, 0-100 Y to SVG coordinates
+            // SVG viewbox will be 0 0 100 100
+            const x = (idx / (data.history.length - 1)) * 100;
+            const y = 100 - val; // Invert Y because SVG 0 is top
+            return `${x},${y}`;
+        }).join(' ');
+
+        // HTML Injection
+        panel.innerHTML = `
+            <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:1px solid ${data.isAlert ? '#ff3333' : '#b8860b'}">
+                <h3 style="margin:0; font-size:20px; color:${data.color}">${data.name}</h3>
+                <span style="font-size:12px; opacity:0.8;">ID: 994-${key.toUpperCase().substring(0,3)}</span>
+            </div>
+
+            <div class="vitals-grid">
+                <div class="vital-module" style="grid-column: span 2; border-color:${data.color}">
+                    <div class="vital-label">CURRENT STATUS</div>
+                    <div class="vital-val ${data.isAlert ? 'alert-text' : ''}" style="font-size:14px; color:${data.color}">
+                        ${data.status}
+                    </div>
+                </div>
+                <div class="vital-module" style="grid-column: span 2; border-color:${data.color}">
+                    <div class="vital-label">LAST KNOWN LOCATION</div>
+                    <div class="vital-val" style="font-size:12px;">${data.location}</div>
+                </div>
+                <div class="vital-module" style="border-color:${data.color}">
+                    <div class="vital-label">HEART RATE</div>
+                    <div class="vital-val">${data.hr}</div>
+                </div>
+                <div class="vital-module" style="border-color:${data.color}">
+                    <div class="vital-label">O2 SAT</div>
+                    <div class="vital-val">${data.o2}</div>
+                </div>
+                <div class="vital-module" style="border-color:${data.color}">
+                    <div class="vital-label">STRESS</div>
+                    <div class="vital-val">${data.isAlert ? 'ERR' : '12%'}</div>
+                </div>
+                <div class="vital-module" style="border-color:${data.color}">
+                    <div class="vital-label">HYDRATION</div>
+                    <div class="vital-val">${data.isAlert ? 'ERR' : '98%'}</div>
+                </div>
+            </div>
+
+            <div class="graph-container" style="border-color:${data.color}">
+                <div style="position:absolute; top:5px; left:5px; font-size:10px; opacity:0.6; z-index:2;">
+                    HEALTH INTEGRITY (LAST 50 CYCLES)
+                </div>
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <line x1="0" y1="25" x2="100" y2="25" stroke="rgba(255,255,255,0.1)" stroke-width="0.5" />
+                    <line x1="0" y1="50" x2="100" y2="50" stroke="rgba(255,255,255,0.1)" stroke-width="0.5" />
+                    <line x1="0" y1="75" x2="100" y2="75" stroke="rgba(255,255,255,0.1)" stroke-width="0.5" />
+                    
+                    <polyline points="${graphPoints}" stroke="${data.color}" />
+                </svg>
+            </div>
+        `;
+    }
+
+</script>
+</body>
+</html>
