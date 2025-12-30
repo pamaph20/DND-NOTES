@@ -526,19 +526,19 @@
                                 <div class="crew-selector">
                                     <div class="crew-card-btn" onclick="loadCrew('mechanic', this)">
                                         <div class="crew-role">MECHANIC</div>
-                                        <div class="crew-name">[ENTER NAME]</div>
+                                        <div class="crew-name">Norman Lister</div>
                                     </div>
                                     <div class="crew-card-btn" onclick="loadCrew('electrician', this)">
                                         <div class="crew-role">ELECTRICIAN</div>
-                                        <div class="crew-name">[ENTER NAME]</div>
+                                        <div class="crew-name">Phoebe White</div>
                                     </div>
                                     <div class="crew-card-btn" onclick="loadCrew('plumber', this)">
                                         <div class="crew-role">PLUMBER</div>
-                                        <div class="crew-name">[ENTER NAME]</div>
+                                        <div class="crew-name">Peter Garbozia</div>
                                     </div>
                                     <div class="crew-card-btn" onclick="loadCrew('medic', this)">
                                         <div class="crew-role">MEDIC</div>
-                                        <div class="crew-name">[ENTER NAME]</div>
+                                        <div class="crew-name">Max White</div>
                                     </div>
                                     <div class="crew-card-btn" onclick="loadCrew('captain', this)" style="color: #ffaa00;">
                                         <div class="crew-role">CAPTAIN</div>
@@ -621,7 +621,7 @@
                                 </div>
                                 <div>STATUS: SHIP EVACUATION / TOTAL RESET</div>
                                 <p style="margin: 5px 0 0 0; font-size: 13px;">
-                                    <strong>INCIDENT REPORT:</strong> All active players (crew) terminated via "Ship Evacuation" protocols. <br><br>
+                                    <strong>INCIDENT REPORT:</strong> All active crew terminated via "Ship Evacuation" protocols. <br><br>
                                     <strong>CAUSE:</strong> Widespread "Identity Persistence." Crew began recognizing previous iterations and questioning replacement status. Panic ensued. Mission parameters compromised.<br>
                                     <strong>RESOLUTION:</strong> Total liquidation. Memory cores wiped. Fresh iterations printed from backup genomic stock.
                                 </p>
@@ -667,37 +667,37 @@
 
     const CREW_DB = {
         'mechanic': {
-            name: "[ENTER NAME]", 
+            name: "Noarman Lister", 
             role: "MECHANIC",
             status: "OPERATIONAL",
-            location: "ENGINEERING (DECK 3)",
+            location: "MEDBAY 01",
             hr: 75,
             o2: 98,
             history: generateVitals(90, 5, 50),
             color: '#ffb000'
         },
         'electrician': {
-            name: "[ENTER NAME]", 
+            name: "Phoebe White", 
             role: "ELECTRICIAN",
             status: "OPERATIONAL",
-            location: "SERVER CORE (DECK 2)",
+            location: "MEDBAY 01",
             hr: 68,
             o2: 99,
             history: generateVitals(92, 4, 50),
             color: '#ffb000'
         },
         'plumber': {
-            name: "[ENTER NAME]", 
+            name: "Peter Garbozia", 
             role: "PLUMBER",
             status: "WARNING: IMMUNO-COMPROMISED",
-            location: "WATER RECLAMATION (DECK 4)",
+            location: "MEDBAY 01",
             hr: 92,
             o2: 91,
             history: generatePlumberVitals(),
             color: '#ffb000'
         },
         'medic': {
-            name: "[ENTER NAME]", 
+            name: "Max White", 
             role: "MEDIC",
             status: "OPERATIONAL",
             location: "MEDBAY 01",
